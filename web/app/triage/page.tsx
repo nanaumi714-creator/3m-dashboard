@@ -8,7 +8,10 @@ export default function TriagePage() {
   const [note, setNote] = useState("");
 
   const untriaged = useMemo(
-    () => transactions.filter((tx) => tx.isBusiness === undefined),
+    () =>
+      transactions
+        .filter((tx) => tx.isBusiness === undefined)
+        .sort((a, b) => Math.abs(b.amountYen) - Math.abs(a.amountYen)),
     []
   );
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { paymentMethods, transactions } from "../lib/mock-data";
 
 export default function TransactionsPage() {
@@ -9,12 +10,14 @@ export default function TransactionsPage() {
   const [from, setFrom] = useState("2025-01-01");
   const [to, setTo] = useState("2025-01-31");
   const [onlyUntriaged, setOnlyUntriaged] = useState(false);
+  const [page, setPage] = useState(1);
+  const perPage = 50;
 
   const filtered = useMemo(() => {
     return transactions.filter((tx) => {
       const matchesQuery =
         tx.description.toLowerCase().includes(query.toLowerCase()) ||
-        tx.vendor.toLowerCase().includes(query.toLowerCase());
+        tx.vendorRaw.toLowerCase().includes(query.toLowerCase());
       const matchesMethod = method === "All" || tx.paymentMethod === method;
       const matchesFrom = from ? tx.occurredOn >= from : true;
       const matchesTo = to ? tx.occurredOn <= to : true;
@@ -27,6 +30,13 @@ export default function TransactionsPage() {
       );
     });
   }, [query, method, from, to, onlyUntriaged]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, method, from, to, onlyUntriaged]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / perPage));
+  const pageItems = filtered.slice((page - 1) * perPage, page * perPage);
 
   return (
     <section>
@@ -75,28 +85,56 @@ export default function TransactionsPage() {
             <th>支払い手段</th>
             <th>金額</th>
             <th>判定</th>
+            <th>ベンダー</th>
           </tr>
         </thead>
         <tbody>
-          {filtered.map((tx) => (
+          {pageItems.map((tx) => (
             <tr key={tx.id}>
               <td>{tx.occurredOn}</td>
-              <td>{tx.description}</td>
+              <td>
+                <Link href={`/transactions/${tx.id}`}>{tx.description}</Link>
+              </td>
               <td>{tx.paymentMethod}</td>
               <td>¥{tx.amountYen.toLocaleString()}</td>
               <td>
                 {tx.isBusiness === undefined ? (
                   <span className="badge">未判定</span>
+                ) : tx.isBusiness && (tx.businessRatio ?? 100) < 100 ? (
+                  "按分"
                 ) : tx.isBusiness ? (
                   "事業"
                 ) : (
-                  "私用"
+                  "生活"
                 )}
               </td>
+              <td>{tx.vendorRaw}</td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <div className="filters" style={{ justifyContent: "flex-end" }}>
+        <button
+          className="button"
+          type="button"
+          onClick={() => setPage((current) => Math.max(1, current - 1))}
+          disabled={page === 1}
+        >
+          前へ
+        </button>
+        <span>
+          {page} / {pageCount}
+        </span>
+        <button
+          className="button"
+          type="button"
+          onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+          disabled={page === pageCount}
+        >
+          次へ
+        </button>
+      </div>
     </section>
   );
 }

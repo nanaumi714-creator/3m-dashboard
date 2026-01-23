@@ -8,21 +8,30 @@ export default function DashboardPage() {
     <section>
       <div className="card-grid">
         <div className="card">
-          <h3>今月の収入</h3>
-          <p>¥{summary.income.toLocaleString()}</p>
-        </div>
-        <div className="card">
           <h3>今月の支出</h3>
           <p>¥{Math.abs(summary.expenses).toLocaleString()}</p>
         </div>
         <div className="card">
-          <h3>差額</h3>
-          <p>¥{summary.balance.toLocaleString()}</p>
+          <h3>事業支出（按分後）</h3>
+          <p>¥{Math.abs(summary.businessExpenses).toLocaleString()}</p>
         </div>
         <div className="card">
           <h3>未判定</h3>
           <p>{summary.untriaged} 件</p>
         </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 24 }}>
+        <h2>支払い手段別支出</h2>
+        <ul>
+          {Object.entries(summary.paymentMethodBreakdown).map(
+            ([method, amount]) => (
+              <li key={method}>
+                {method}: ¥{Math.abs(amount).toLocaleString()}
+              </li>
+            )
+          )}
+        </ul>
       </div>
 
       <div className="card">

@@ -42,6 +42,7 @@ def import_csv(
     )
     if existing.data:
         print(f"⚠️  File already imported (checksum: {file_checksum[:8]}...)")
+        print("Inserted: 0 / Skipped: 0 / Duplicate candidates: 0 / Errors: 0")
         return
 
     import_source = (
@@ -59,19 +60,37 @@ def import_csv(
 
     import_source_id = import_source.data[0]["id"]
     transactions = []
+    errors = 0
 
     with open(file_path, "r", encoding="utf-8-sig") as file:
         reader = csv.DictReader(file)
-        for row_num, row in enumerate(reader, start=1):
-            occurred_on = datetime.strptime(row[column_mapping["date"]], "%Y/%m/%d").date()
-            amount_str = (
-                row[column_mapping["amount"]].replace(",", "").replace("¥", "")
+        missing_columns = [
+            column_mapping[key]
+            for key in ("date", "amount", "description")
+            if column_mapping[key] not in (reader.fieldnames or [])
+        ]
+        if missing_columns:
+            raise ValueError(
+                f"Missing required columns: {', '.join(missing_columns)}. "
+                "Check the CSV header and column mapping arguments."
             )
-            amount_yen = int(amount_str)
-            description = row[column_mapping["description"]].strip()
+        for row_num, row in enumerate(reader, start=1):
+            try:
+                occurred_on = datetime.strptime(
+                    row[column_mapping["date"]], "%Y/%m/%d"
+                ).date()
+                amount_str = (
+                    row[column_mapping["amount"]].replace(",", "").replace("¥", "")
+                )
+                amount_yen = int(amount_str)
+                description = row[column_mapping["description"]].strip()
+            except (KeyError, ValueError) as exc:
+                errors += 1
+                print(f"⚠️  Row {row_num} skipped: {exc}")
+                continue
 
-            vendor_raw = description.split()[0] if description else ""
-            vendor_norm = normalize_vendor(vendor_raw)
+            vendor_raw = description
+            vendor_norm = normalize_vendor(vendor_raw[:30])
 
             fingerprint = generate_fingerprint(
                 occurred_on=occurred_on,
@@ -97,6 +116,7 @@ def import_csv(
 
     if not transactions:
         print("⚠️  No transactions to import")
+        print(f"Inserted: 0 / Skipped: 0 / Duplicate candidates: 0 / Errors: {errors}")
         return
 
     fingerprints = [transaction["fingerprint"] for transaction in transactions]
@@ -112,10 +132,18 @@ def import_csv(
 
     if new_transactions:
         supabase.table("transactions").insert(new_transactions).execute()
-        print(f"✅ Imported {len(new_transactions)} transactions")
+    inserted_count = len(new_transactions)
+    skipped_count = len(transactions) - inserted_count
 
-    if duplicate_count > 0:
-        print(f"⚠️  Skipped {duplicate_count} potential duplicates")
+    print(
+        "Inserted: {inserted} / Skipped: {skipped} / Duplicate candidates: "
+        "{duplicate} / Errors: {errors}".format(
+            inserted=inserted_count,
+            skipped=skipped_count,
+            duplicate=duplicate_count,
+            errors=errors,
+        )
+    )
 
 
 def parse_args() -> argparse.Namespace:
