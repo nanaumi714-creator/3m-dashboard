@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  db:
+    image: supabase/postgres:15.1.0.117
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./supabase/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  web:
+    build: ./web
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      NEXT_PUBLIC_DB_HOST: db
+      NEXT_PUBLIC_DB_PORT: 5432
+    depends_on:
+      - db
+
+  importer:
+    build: ./importer
+    volumes:
+      - ./data:/data
+    environment:
+      SUPABASE_URL: "http://localhost:54321"
+      SUPABASE_KEY: "your-anon-key"
+    command: ["sleep", "infinity"]
+    depends_on:
+      - db
+
+volumes:
+  db_data:
