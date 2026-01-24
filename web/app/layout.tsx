@@ -26,6 +26,8 @@ export default function RootLayout({
               </Link>
               <Link href="/transactions">Transactions</Link>
               <Link href="/triage">Triage Queue</Link>
+              <Link href="/vendors">Vendors</Link>
+              <Link href="/categories">Categories</Link>
             </nav>
           </header>
           {children}

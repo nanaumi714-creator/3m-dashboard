@@ -110,119 +110,214 @@ export default function TransactionsPage() {
 
   const pageCount = Math.max(1, Math.ceil(totalCount / perPage));
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-600">Loading transactions...</div>
+      </div>
+    );
+  }
+
   return (
-    <section>
-      <div className="filters">
-        <label>
-          検索
-          <input
-            defaultValue={query}
-            onChange={(e) => handleSearch(e.target.value)}
-            placeholder="ベンダーやメモを検索"
-          />
-        </label>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">取引履歴</h1>
+          <p className="text-gray-600">
+            全取引の履歴を確認・検索できます（合計: <span className="font-semibold text-blue-600">{totalCount}件</span>）
+          </p>
+        </div>
 
-        <label>
-          期間（開始）
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-        </label>
-        <label>
-          期間（終了）
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-        </label>
-        <label>
-          未判定のみ (Client Filter)
-          <input
-            type="checkbox"
-            checked={onlyUntriaged}
-            onChange={(e) => {
-              setOnlyUntriaged(e.target.checked);
-              setPage(1);
-            }}
-          />
-        </label>
-      </div>
+        {/* Filters Panel */}
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 mb-6">
+          <h2 className="text-base font-medium text-gray-900 mb-3">フィルター</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                検索
+              </label>
+              <input
+                defaultValue={query}
+                onChange={(e) => handleSearch(e.target.value)}
+                placeholder="ベンダーやメモを検索"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
 
-      {loading ? (
-        <p>Loading...</p>
-      ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>日付</th>
-              <th>内容</th>
-              <th>支払い手段</th>
-              <th>金額</th>
-              <th>判定</th>
-              <th>ベンダー</th>
-            </tr>
-          </thead>
-          <tbody>
-            {transactions.map((tx) => {
-              const isExpense = tx.amount_yen < 0;
-              const tbi = tx.transaction_business_info;
-              const statusLabel = !tbi
-                ? "未判定"
-                : !tbi.is_business
-                  ? "生活"
-                  : tbi.business_ratio < 100
-                    ? "按分"
-                    : "事業";
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                期間（開始）
+              </label>
+              <input 
+                type="date" 
+                value={from} 
+                onChange={(e) => setFrom(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
 
-              return (
-                <tr key={tx.id}>
-                  <td>{tx.occurred_on}</td>
-                  <td>
-                    <Link href={`/transactions/${tx.id}`}>{tx.description}</Link>
-                  </td>
-                  <td>{tx.payment_methods?.name || "Unknown"}</td>
-                  <td className={cn(
-                    "font-mono text-right",
-                    isExpense ? "text-red-600" : "text-green-600"
-                  )}>
-                    {isExpense ? "" : "+"}¥{Math.abs(tx.amount_yen).toLocaleString()}
-                  </td>
-                  <td>
-                    <span className={cn(
-                      "px-2 py-1 rounded text-xs border",
-                      statusLabel === "未判定" && "bg-gray-100 text-gray-800 border-gray-300",
-                      statusLabel === "生活" && "bg-blue-50 text-blue-700 border-blue-200",
-                      statusLabel === "事業" && "bg-amber-50 text-amber-700 border-amber-200",
-                      statusLabel === "按分" && "bg-amber-100 text-amber-800 border-amber-300"
-                    )}>
-                      {statusLabel}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                期間（終了）
+              </label>
+              <input 
+                type="date" 
+                value={to} 
+                onChange={(e) => setTo(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                表示オプション
+              </label>
+              <div className="flex items-center pt-1">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={onlyUntriaged}
+                    onChange={(e) => {
+                      setOnlyUntriaged(e.target.checked);
+                      setPage(1);
+                    }}
+                    className="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <div className="ml-2">
+                    <span className="text-xs font-medium text-gray-700">
+                      未判定のみ表示
                     </span>
-                  </td>
-                  <td>{tx.vendor_raw}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
+                    <div className="text-xs text-gray-500">
+                      クライアント側フィルター
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
 
-      <div className="filters" style={{ justifyContent: "flex-end", marginTop: "1rem" }}>
-        <button
-          className="button"
-          type="button"
-          onClick={() => setPage((current) => Math.max(1, current - 1))}
-          disabled={page === 1}
-        >
-          前へ
-        </button>
-        <span className="mx-4">
-          {page} / {pageCount} (Total: {totalCount})
-        </span>
-        <button
-          className="button"
-          type="button"
-          onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
-          disabled={page === pageCount}
-        >
-          次へ
-        </button>
+        {/* Transactions Table */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日付</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">内容</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">支払い手段</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">金額</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">判定</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ベンダー</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {transactions.map((tx) => {
+                  const isExpense = tx.amount_yen < 0;
+                  const tbi = tx.transaction_business_info;
+                  const statusLabel = !tbi
+                    ? "未判定"
+                    : !tbi.is_business
+                      ? "生活"
+                      : tbi.business_ratio < 100
+                        ? "按分"
+                        : "事業";
+
+                  return (
+                    <tr key={tx.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {tx.occurred_on}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <Link 
+                          href={`/transactions/${tx.id}`}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {tx.description}
+                        </Link>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {tx.payment_methods?.name || "Unknown"}
+                      </td>
+                      <td className={cn(
+                        "px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-semibold",
+                        isExpense ? "text-red-600" : "text-green-600"
+                      )}>
+                        {isExpense ? "" : "+"}¥{Math.abs(tx.amount_yen).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={cn(
+                          "inline-flex px-3 py-1 text-xs font-medium rounded-full",
+                          statusLabel === "未判定" && "bg-gray-100 text-gray-800",
+                          statusLabel === "生活" && "bg-blue-100 text-blue-800",
+                          statusLabel === "事業" && "bg-amber-100 text-amber-800",
+                          statusLabel === "按分" && "bg-purple-100 text-purple-800"
+                        )}>
+                          {statusLabel}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {tx.vendor_raw || '-'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {transactions.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-gray-400 text-lg mb-2">📊</div>
+              <p className="text-gray-500">条件に一致する取引が見つかりません</p>
+              <p className="text-sm text-gray-400">フィルター条件を変更してください</p>
+            </div>
+          )}
+        </div>
+
+        {/* Pagination */}
+        <div className="flex items-center justify-between mt-6">
+          <div className="text-sm text-gray-700">
+            <span className="font-medium">{((page - 1) * perPage) + 1}</span>
+            {" - "}
+            <span className="font-medium">{Math.min(page * perPage, totalCount)}</span>
+            {" / "}
+            <span className="font-medium">{totalCount}</span>
+            件を表示
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              disabled={page === 1}
+              className={cn(
+                "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                page === 1 
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+              )}
+            >
+              前へ
+            </button>
+            <span className="flex items-center px-4 py-2 text-sm text-gray-700">
+              {page} / {pageCount}
+            </span>
+            <button
+              onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+              disabled={page === pageCount}
+              className={cn(
+                "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                page === pageCount 
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+              )}
+            >
+              次へ
+            </button>
+          </div>
+        </div>
       </div>
-    </section>
+    </div>
   );
 }
 

@@ -3,41 +3,47 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Database } from "@/lib/database.types";
-import { cn } from "@/lib/utils";
 
 type Transaction = Database["public"]["Tables"]["transactions"]["Row"];
+type ExpenseCategory = Database["public"]["Tables"]["expense_categories"]["Row"];
 
 export default function TriagePage() {
   const [untriaged, setUntriaged] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [ratio, setRatio] = useState(100);
   const [note, setNote] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
-  // Fetch unjudged transactions
-  const fetchUntriaged = async () => {
+  // Fetch unjudged transactions and categories
+  const fetchData = async () => {
     setLoading(true);
     try {
-      // Find transactions where transaction_business_info is missing.
-      // Easiest is to fetch transactions and LEFT JOIN, then filter.
-      // Or select IDs from transaction_business_info and excluded them.
-      // For now, simpler approach: fetch recent transactions and filter client side 
-      // OR use RPC if we had one.
-      // Let's rely on fetching recent 100 transactions and filtering for now 
-      // as "Unjudged" should be recent.
-      const { data, error } = await supabase
+      // Fetch untriaged transactions
+      const { data: transactionData, error: transactionError } = await supabase
         .from("transactions")
         .select("*, transaction_business_info(transaction_id)")
-        .order("amount_yen", { ascending: true }) // Large expenses first? Or date?
+        .order("occurred_on", { ascending: false })
         .limit(200);
 
-      if (error) throw error;
+      if (transactionError) throw transactionError;
 
       // Filter those who have NO business info
-      const unjudged = (data as any[]).filter(
+      const unjudged = (transactionData as any[]).filter(
         (tx) => !tx.transaction_business_info
       );
 
+      // Fetch active categories
+      const { data: categoryData, error: categoryError } = await supabase
+        .from("expense_categories")
+        .select("*")
+        .eq("is_active", true)
+        .order("name");
+
+      if (categoryError) throw categoryError;
+
       setUntriaged(unjudged);
+      setCategories(categoryData || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -46,7 +52,7 @@ export default function TriagePage() {
   };
 
   useEffect(() => {
-    fetchUntriaged();
+    fetchData();
   }, []);
 
   const handleJudge = async (txId: string, isBusiness: boolean) => {
@@ -56,9 +62,11 @@ export default function TriagePage() {
         .insert({
           transaction_id: txId,
           is_business: isBusiness,
-          business_ratio: isBusiness ? ratio : 0, // 0 if personal
-          audit_note: note,
+          business_ratio: isBusiness ? ratio : 0,
+          category_id: isBusiness && selectedCategoryId ? selectedCategoryId : null,
+          audit_note: note || null,
           judged_at: new Date().toISOString(),
+          judged_by: "user" // Phase 2: hardcoded user, Phase 4: actual auth
         });
 
       if (error) throw error;
@@ -66,95 +74,131 @@ export default function TriagePage() {
       // Remove from list
       setUntriaged((prev) => prev.filter((t) => t.id !== txId));
 
-      // Reset inputs slightly? Keep ratio/note for batch?
-      // Keeping them is better UX for batch processing same context.
-
     } catch (e) {
       console.error("Failed to judge", e);
       alert("保存に失敗しました");
     }
   };
 
-  if (loading) return <p>Loading...</p>;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-600">Loading...</div>
+      </div>
+    );
+  }
 
   return (
-    <section>
-      <div className="card">
-        <h2>未判定キュー</h2>
-        <p className="notice">
-          未判定取引 ({untriaged.length}件) に対して事業判定と按分を記録します。
-        </p>
-      </div>
-
-      <div className="card" style={{ marginTop: 24, marginBottom: 24 }}>
-        <h3>判定設定 (共通)</h3>
-        <div className="filters">
-          <label>
-            事業割合 (%)
-            <input
-              type="number"
-              min={0}
-              max={100}
-              value={ratio}
-              onChange={(event) => setRatio(Number(event.target.value))}
-            />
-          </label>
-          <label>
-            メモ
-            <input
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              placeholder="判定理由や備考"
-            />
-          </label>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">未判定キュー</h1>
+          <p className="text-gray-600">
+            未判定取引 <span className="font-semibold text-blue-600">({untriaged.length}件)</span> に対して事業判定・カテゴリ・按分を記録します
+          </p>
         </div>
-      </div>
 
-      <table className="table">
-        <thead>
-          <tr>
-            <th>日付</th>
-            <th>内容</th>
-            <th>金額</th>
-            <th>アクション</th>
-          </tr>
-        </thead>
-        <tbody>
+        {/* Settings Panel */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">判定設定 (共通)</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                事業割合 (%)
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={ratio}
+                onChange={(event) => setRatio(Number(event.target.value))}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                カテゴリ
+              </label>
+              <select
+                value={selectedCategoryId}
+                onChange={(event) => setSelectedCategoryId(event.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">-- カテゴリを選択 --</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                メモ
+              </label>
+              <input
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                placeholder="判定理由や備考"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Transactions List */}
+        <div className="space-y-4">
           {untriaged.map((tx) => (
-            <tr key={tx.id}>
-              <td>{tx.occurred_on}</td>
-              <td>{tx.description}</td>
-              <td className="font-mono text-right">¥{tx.amount_yen.toLocaleString()}</td>
-              <td>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div key={tx.id} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-4 mb-3">
+                    <span className="text-sm font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      {tx.occurred_on}
+                    </span>
+                    <span className="text-lg font-bold text-gray-900">
+                      ¥{tx.amount_yen.toLocaleString()}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {tx.description}
+                  </h3>
+                  {tx.vendor_norm && (
+                    <p className="text-sm text-gray-600 mb-3">
+                      ベンダー: {tx.vendor_norm}
+                    </p>
+                  )}
+                </div>
+                <div className="flex space-x-3 ml-6">
                   <button
-                    className="button bg-blue-600 text-white hover:bg-blue-700"
-                    type="button"
                     onClick={() => handleJudge(tx.id, true)}
+                    className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+                    title={`事業経費として記録 (${ratio}%${selectedCategoryId ? ', カテゴリ: ' + categories.find(c => c.id === selectedCategoryId)?.name : ''})`}
                   >
-                    事業として記録 ({ratio}%)
+                    事業 ({ratio}%)
                   </button>
                   <button
-                    className="button bg-gray-200 text-gray-800 hover:bg-gray-300"
-                    type="button"
                     onClick={() => handleJudge(tx.id, false)}
+                    className="bg-gray-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors font-medium"
                   >
                     私用 (0%)
                   </button>
                 </div>
-              </td>
-            </tr>
+              </div>
+            </div>
           ))}
-          {untriaged.length === 0 && (
-            <tr>
-              <td colSpan={4} className="text-center py-8 text-gray-500">
-                未判定の取引はありません 🎉
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </section>
+        </div>
+
+        {untriaged.length === 0 && (
+          <div className="text-center py-12">
+            <div className="text-gray-400 text-6xl mb-4">🎉</div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">すべて完了！</h3>
+            <p className="text-gray-500">未判定の取引はありません</p>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
