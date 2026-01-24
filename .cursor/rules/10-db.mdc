@@ -1,0 +1,35 @@
+# Database Rules
+
+---
+description: Constraints and guidelines for Database (SQL) development
+globs: 
+  - "database/**/*.sql"
+  - "supabase/**/*.sql"
+---
+
+## Core Principles
+
+1. **Schema as Code**: All changes must be in migration files.
+2. **Commented DDL**: Every `CREATE TABLE` and `CREATE COLUMN` must have a comment explaining its purpose.
+3. **Snake_case**: All identifiers (tables, columns, indexes) must be `snake_case`.
+
+## Phase 1 Constraints
+
+- ❌ No Foreign Currency columns (JPY only).
+- ❌ No RLS policies (Phase 1 is single-user local).
+- ✅ Start `amount_` columns with `amount_yen_` to be explicit.
+- ✅ Use `BIGINT` for money, not `DECIMAL` or `REAL`.
+
+## Workflow
+
+1. **Check `ai/DB.md`**: Does your change match the schema intent?
+2. **Write Migration**: Create a new SQL file in `supabase/migrations`.
+3. **Annotate**: Add comments.
+   ```sql
+   create table public.example (
+     id uuid primary key default gen_random_uuid(),
+     created_at timestamptz default now()
+   );
+   comment on table public.example is 'Example table for demonstration';
+   ```
+4. **Update Docs**: If you added a table/column, update `ai/DB.md`.

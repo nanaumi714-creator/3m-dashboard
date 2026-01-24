@@ -5,8 +5,15 @@ export type Transaction = {
   description: string;
   paymentMethod: string;
   vendor: string;
+  vendorRaw: string;
   isBusiness?: boolean;
   businessRatio?: number;
+};
+
+export type Receipt = {
+  id: string;
+  transactionId: string;
+  storageUrl: string;
 };
 
 export const transactions: Transaction[] = [
@@ -17,6 +24,7 @@ export const transactions: Transaction[] = [
     description: "AWS Hosting",
     paymentMethod: "Visa",
     vendor: "aws",
+    vendorRaw: "Amazon Web Services",
     isBusiness: true,
     businessRatio: 100
   },
@@ -26,7 +34,8 @@ export const transactions: Transaction[] = [
     amountYen: -980,
     description: "Seven Eleven",
     paymentMethod: "Cash",
-    vendor: "seveneleven"
+    vendor: "seveneleven",
+    vendorRaw: "セブンイレブン 新宿店"
   },
   {
     id: "tx-003",
@@ -34,7 +43,8 @@ export const transactions: Transaction[] = [
     amountYen: 250000,
     description: "Client Invoice #2025-01",
     paymentMethod: "Bank",
-    vendor: "client"
+    vendor: "client",
+    vendorRaw: "取引先A 1月分請求"
   },
   {
     id: "tx-004",
@@ -43,6 +53,7 @@ export const transactions: Transaction[] = [
     description: "Notion Subscription",
     paymentMethod: "Mastercard",
     vendor: "notion",
+    vendorRaw: "Notion Labs, Inc.",
     isBusiness: true,
     businessRatio: 100
   },
@@ -53,8 +64,22 @@ export const transactions: Transaction[] = [
     description: "交通費",
     paymentMethod: "Suica",
     vendor: "jr",
+    vendorRaw: "JR東日本",
     isBusiness: false,
     businessRatio: 0
+  }
+];
+
+export const receipts: Receipt[] = [
+  {
+    id: "rcpt-001",
+    transactionId: "tx-001",
+    storageUrl: "https://drive.google.com/example/receipt-aws"
+  },
+  {
+    id: "rcpt-002",
+    transactionId: "tx-004",
+    storageUrl: "https://drive.google.com/example/receipt-notion"
   }
 ];
 

@@ -33,14 +33,14 @@ def generate_fingerprint(
     - occurred_on (YYYY-MM-DD)
     - amount_yen
     - payment_method_id
-    - vendor_norm (first 20 chars)
+    - vendor_norm
     - source_type
     """
     components = [
         occurred_on.isoformat(),
         str(amount_yen),
         payment_method_id,
-        vendor_norm[:20] if vendor_norm else "",
+        vendor_norm if vendor_norm else "",
         source_type,
     ]
 
