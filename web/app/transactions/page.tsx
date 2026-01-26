@@ -14,17 +14,32 @@ type Transaction = Database["public"]["Tables"]["transactions"]["Row"] & {
   | null;
 };
 
+type ExpenseCategory = Database["public"]["Tables"]["expense_categories"]["Row"];
+type SavedSearch = Database["public"]["Tables"]["saved_searches"]["Row"];
+
 export default function TransactionsPage() {
   const [query, setQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [from, setFrom] = useState("2025-01-01"); // TODO: Default to current month start
   const [to, setTo] = useState("2025-12-31");
   const [onlyUntriaged, setOnlyUntriaged] = useState(false);
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [includeOcr, setIncludeOcr] = useState(true);
   const [page, setPage] = useState(1);
   const perPage = 50;
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
+  const [exporting, setExporting] = useState(false);
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [selectedSearchId, setSelectedSearchId] = useState("");
+  const [showSaveSearch, setShowSaveSearch] = useState(false);
+  const [saveSearchName, setSaveSearchName] = useState("");
+  const [savingSearch, setSavingSearch] = useState(false);
 
   // Debounce search input
   const handleSearch = useDebouncedCallback((value: string) => {
@@ -33,24 +48,69 @@ export default function TransactionsPage() {
   }, 300);
 
   useEffect(() => {
+    async function loadCategories() {
+      try {
+        const { data, error } = await supabase
+          .from("expense_categories")
+          .select("*")
+          .order("name");
+        if (error) throw error;
+        setCategories(data || []);
+      } catch (err) {
+        console.error("Failed to load categories", err);
+      }
+    }
+
+    loadCategories();
+  }, []);
+
+  useEffect(() => {
+    async function loadSavedSearches() {
+      try {
+        const { data, error } = await supabase
+          .from("saved_searches")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        setSavedSearches(data || []);
+      } catch (err) {
+        console.error("Failed to load saved searches", err);
+      }
+    }
+
+    loadSavedSearches();
+  }, []);
+
+  useEffect(() => {
     async function fetchTransactions() {
       setLoading(true);
       try {
         let q = supabase
           .from("transactions")
           .select(
-            "*, payment_methods(*), transaction_business_info(*)",
+            "*, payment_methods(*), transaction_business_info(*), receipts(ocr_text)",
             { count: "exact" }
           );
 
         if (query) {
           // Vendor OR Description match
-          // Note: Full text search would be better Phase 3
-          q = q.or(`description.ilike.%${query}%,vendor_raw.ilike.%${query}%`);
+          const searchFilters = [
+            `description.ilike.%${query}%`,
+            `vendor_raw.ilike.%${query}%`,
+          ];
+          if (includeOcr) {
+            searchFilters.push(`receipts.ocr_text.ilike.%${query}%`);
+          }
+          q = q.or(searchFilters.join(","));
         }
 
         if (from) q = q.gte("occurred_on", from);
         if (to) q = q.lte("occurred_on", to);
+        if (minAmount) q = q.gte("amount_yen", Number(minAmount));
+        if (maxAmount) q = q.lte("amount_yen", Number(maxAmount));
+        if (categoryId) {
+          q = q.eq("transaction_business_info.category_id", categoryId);
+        }
 
         if (onlyUntriaged) {
           // Filter where transaction_business_info is null
@@ -86,7 +146,7 @@ export default function TransactionsPage() {
 
         if (error) throw error;
 
-        let validData = (data as any) as Transaction[]; // Casting for extended types
+        let validData = (data as unknown) as Transaction[]; // Casting for extended types
 
         if (onlyUntriaged) {
           // Client side filter for now as workaround
@@ -106,7 +166,17 @@ export default function TransactionsPage() {
     }
 
     fetchTransactions();
-  }, [query, from, to, page, onlyUntriaged]);
+  }, [
+    query,
+    from,
+    to,
+    page,
+    onlyUntriaged,
+    minAmount,
+    maxAmount,
+    categoryId,
+    includeOcr,
+  ]);
 
   const pageCount = Math.max(1, Math.ceil(totalCount / perPage));
 
@@ -122,11 +192,63 @@ export default function TransactionsPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">取引履歴</h1>
-          <p className="text-gray-600">
-            全取引の履歴を確認・検索できます（合計: <span className="font-semibold text-blue-600">{totalCount}件</span>）
-          </p>
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">取引履歴</h1>
+            <p className="text-gray-600">
+              全取引の履歴を確認・検索できます（合計:{" "}
+              <span className="font-semibold text-blue-600">{totalCount}件</span>
+              ）
+            </p>
+          </div>
+          <button
+            onClick={async () => {
+              setExporting(true);
+              try {
+                const response = await fetch("/api/exports/transactions", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    query,
+                    from,
+                    to,
+                    onlyUntriaged,
+                    minAmount,
+                    maxAmount,
+                    categoryId,
+                    includeOcr,
+                  }),
+                });
+                if (!response.ok) {
+                  const body = await response.json();
+                  throw new Error(body.error || "エクスポートに失敗しました。");
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = "transactions.csv";
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.URL.revokeObjectURL(url);
+              } catch (err) {
+                console.error("Export error", err);
+                alert(
+                  err instanceof Error
+                    ? err.message
+                    : "エクスポートに失敗しました。"
+                );
+              } finally {
+                setExporting(false);
+              }
+            }}
+            disabled={exporting}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm disabled:opacity-50"
+          >
+            {exporting ? "エクスポート中..." : "CSVエクスポート"}
+          </button>
         </div>
 
         {/* Filters Panel */}
@@ -138,11 +260,26 @@ export default function TransactionsPage() {
                 検索
               </label>
               <input
-                defaultValue={query}
-                onChange={(e) => handleSearch(e.target.value)}
+                value={searchInput}
+                onChange={(e) => {
+                  setSearchInput(e.target.value);
+                  handleSearch(e.target.value);
+                }}
                 placeholder="ベンダーやメモを検索"
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
               />
+              <label className="flex items-center gap-2 mt-2 text-xs text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={includeOcr}
+                  onChange={(event) => {
+                    setIncludeOcr(event.target.checked);
+                    setPage(1);
+                  }}
+                  className="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                OCR本文も検索対象にする
+              </label>
             </div>
 
             <div>
@@ -195,8 +332,195 @@ export default function TransactionsPage() {
                 </label>
               </div>
             </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                金額（最小）
+              </label>
+              <input
+                type="number"
+                value={minAmount}
+                onChange={(e) => {
+                  setMinAmount(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="例: -5000"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                金額（最大）
+              </label>
+              <input
+                type="number"
+                value={maxAmount}
+                onChange={(e) => {
+                  setMaxAmount(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="例: 0"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                カテゴリ
+              </label>
+              <select
+                value={categoryId}
+                onChange={(e) => {
+                  setCategoryId(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">すべて</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                保存検索
+              </label>
+              <select
+                value={selectedSearchId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setSelectedSearchId(id);
+                  const selected = savedSearches.find((search) => search.id === id);
+                  if (selected) {
+                    setSearchInput(selected.query || "");
+                    setQuery(selected.query || "");
+                    const filters = (selected.filters || {}) as {
+                      from?: string;
+                      to?: string;
+                      onlyUntriaged?: boolean;
+                      minAmount?: string;
+                      maxAmount?: string;
+                      categoryId?: string;
+                      includeOcr?: boolean;
+                    };
+                    setFrom(filters.from || "");
+                    setTo(filters.to || "");
+                    setOnlyUntriaged(Boolean(filters.onlyUntriaged));
+                    setMinAmount(filters.minAmount || "");
+                    setMaxAmount(filters.maxAmount || "");
+                    setCategoryId(filters.categoryId || "");
+                    setIncludeOcr(filters.includeOcr ?? true);
+                    setPage(1);
+                  }
+                }}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">未選択</option>
+                {savedSearches.map((search) => (
+                  <option key={search.id} value={search.id}>
+                    {search.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSaveSearch(true);
+                  setSaveSearchName(query ? `${query} 検索` : "");
+                }}
+                className="mt-2 text-xs text-blue-600 hover:underline"
+              >
+                現在の検索条件を保存
+              </button>
+            </div>
           </div>
         </div>
+
+        {showSaveSearch && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900">
+                検索条件を保存
+              </h2>
+              <form
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  if (!saveSearchName.trim()) {
+                    alert("検索名を入力してください。");
+                    return;
+                  }
+                  setSavingSearch(true);
+                  try {
+                    const filters = {
+                      from,
+                      to,
+                      onlyUntriaged,
+                      minAmount,
+                      maxAmount,
+                      categoryId,
+                      includeOcr,
+                    };
+                    const { data, error } = await supabase
+                      .from("saved_searches")
+                      .insert({
+                        name: saveSearchName.trim(),
+                        query: query || null,
+                        filters,
+                      })
+                      .select("*")
+                      .single();
+                    if (error) throw error;
+                    if (data) {
+                      setSavedSearches((prev) => [data, ...prev]);
+                      setSelectedSearchId(data.id);
+                    }
+                    setShowSaveSearch(false);
+                  } catch (err) {
+                    console.error("Failed to save search", err);
+                    alert(
+                      err instanceof Error
+                        ? err.message
+                        : "保存に失敗しました。"
+                    );
+                  } finally {
+                    setSavingSearch(false);
+                  }
+                }}
+                className="space-y-4"
+              >
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    保存名
+                  </label>
+                  <input
+                    type="text"
+                    value={saveSearchName}
+                    onChange={(e) => setSaveSearchName(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="例: 交通費 2025年"
+                  />
+                </div>
+                <div className="flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowSaveSearch(false)}
+                    className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingSearch}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
+                  >
+                    {savingSearch ? "保存中..." : "保存"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Transactions Table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -320,4 +644,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
