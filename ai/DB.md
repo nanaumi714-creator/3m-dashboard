@@ -1,4 +1,4 @@
-# Database Schema Guide (Phase 2)
+# Database Schema Guide (Phase 3)
 
 This document explains the intent behind the schema design.
 See `supabase/init.sql` for the actual DDL.
@@ -94,6 +94,54 @@ See `supabase/init.sql` for the actual DDL.
 
 ---
 
+## Phase 3 Tables
+
+### 9. `export_templates`
+**Role**: Saved export presets for CSV/Excel output.
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| name | TEXT | Human-friendly template name |
+| format | TEXT | csv/excel |
+| columns | JSONB | Output column definitions |
+| filters | JSONB | Default filters |
+| created_at | TIMESTAMP | Created time |
+
+### 10. `export_history`
+**Role**: Audit trail for export executions.
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| template_id | UUID | Optional FK to export_templates |
+| format | TEXT | csv/excel |
+| filters | JSONB | Filters applied at export time |
+| row_count | INTEGER | Rows exported |
+| created_at | TIMESTAMP | Export time |
+
+### 11. `saved_searches`
+**Role**: Reusable advanced search presets.
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| name | TEXT | Saved search name |
+| query | TEXT | Full-text search input |
+| filters | JSONB | Structured filters |
+| created_at | TIMESTAMP | Created time |
+
+### 12. `ocr_usage_logs`
+**Role**: OCR usage tracking for monthly caps.
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| receipt_id | UUID | FK to receipts (nullable) |
+| provider | TEXT | OCR provider identifier |
+| status | TEXT | success/failed |
+| pages | INTEGER | Billable pages |
+| error_message | TEXT | Failure context |
+| request_at | TIMESTAMP | OCR request timestamp |
+
+---
+
 ## Key Constraints
 
 1. **Amount check**: `amount_yen` is never 0 (usually).
@@ -114,7 +162,14 @@ Rule Application → vendor_rules → suggested judgment
 User Confirmation → transaction_business_info (with category_id)
 ```
 
-## Phase 3+ Planned Tables (Do Not Create Yet)
-- `export_templates` (Export configurations)
-- `saved_searches` (Complex filter presets)
-- `gmail_sync_configs` (Email integration)
+## Phase 3 Data Flow (OCR + Export + Search)
+
+```
+Receipt Upload → receipts (ocr_text)
+     ↓
+OCR Run → ocr_usage_logs (cost tracking)
+     ↓
+Advanced Search → saved_searches (query presets)
+     ↓
+Export → export_templates → export_history
+```

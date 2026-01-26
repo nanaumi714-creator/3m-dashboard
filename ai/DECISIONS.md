@@ -85,3 +85,57 @@ The app runs on `localhost`.
 3.  **Migration**: Auth will be added in Phase 4 (Cloud).
 
 ---
+
+## ADR-006: OCR Provider for Phase 3
+
+**Decision**: Use **Google Vision API only** for Phase 3 OCR.
+
+**Context**:
+Phase 3 introduces OCR to unlock export/search improvements.  
+Supporting multiple OCR providers in Phase 3 increases cost and operational complexity.
+
+**Why**:
+1.  **Simplicity**: One provider keeps auth, retries, and error handling manageable.
+2.  **Cost Control**: Avoids parallel billing streams and reduces variance.
+3.  **Focus**: Enables faster delivery of OCR-dependent features.
+
+**Consequences**:
+- AWS Textract is deferred to Phase 4+ as an optional fallback if needed.
+
+---
+
+## ADR-007: Gmail Sync Deferred to Phase 4
+
+**Decision**: Defer Gmail sync to Phase 4 (cloud deployment).
+
+**Context**:
+Phase 3 remains local-only. Gmail OAuth on localhost introduces UX and token lifecycle issues.
+
+**Why**:
+1.  **UX**: Re-auth flows on local dev are fragile and disruptive.
+2.  **Security**: Token storage is riskier without a cloud auth layer.
+3.  **Device Limitation**: Local-only tokens don't sync across machines.
+
+**Consequences**:
+- Phase 3 focuses on manual upload → OCR.
+- Gmail sync becomes part of Phase 4 once auth + hosting is available.
+
+---
+
+## ADR-008: Japanese Full-Text Search via pg_bigm
+
+**Decision**: Use PostgreSQL `pg_bigm` for Japanese full-text search in Phase 3.
+
+**Context**:
+Default PostgreSQL full-text search is English-centric and not reliable for Japanese.
+
+**Why**:
+1.  **Relevance**: Bigram matching yields practical results for Japanese text.
+2.  **Local Fit**: Works within Supabase Local without external search services.
+3.  **Performance**: Faster than naive LIKE scans on large text fields.
+
+**Consequences**:
+- Requires enabling `pg_bigm` extension in local PostgreSQL.
+- Search scope is limited to key fields (description, vendor_raw, ocr_text).
+
+---

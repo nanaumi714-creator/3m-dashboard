@@ -19,7 +19,7 @@
 
 ## Current Status
 
-**Active Phase**: Phase 2 (see `ai/PHASE.md` for constraints)
+**Active Phase**: Phase 3 (see `ai/PHASE.md` for constraints)
 
 **Tech Stack**:
 - Frontend: Next.js 14+ (App Router), Tailwind CSS v3.4
@@ -31,9 +31,9 @@
 
 ---
 
-## Phase 2 Features (Current)
+## Phase 3 Features (Current)
 
-✅ **Implemented**:
+✅ **Phase 2 Baseline (Already Implemented)**:
 - Vendor master (`vendors`, `vendor_aliases` tables)
 - Expense categories (`expense_categories` table)
 - Enhanced Triage Queue with category selection
@@ -41,13 +41,18 @@
 - Category management UI
 - Improved transaction listing with filters
 
-❌ **Phase 2 Constraints** (Still Forbidden):
-- Cloud services (Supabase Cloud, Vercel, OCR APIs)
+✅ **Phase 3 Unlocks (To Implement)**:
+- OCR integration (Google Vision API)
+- Export (CSV/Excel)
+- Advanced search (Japanese full-text)
+
+❌ **Phase 3 Constraints** (Still Forbidden):
+- Cloud services (Supabase Cloud, Vercel)
 - Foreign currency support
 - localStorage/sessionStorage
-- Multiple CSV formats (only 1 card CSV supported)
 - Mobile optimization
 - Revenue input UI (expense-focused for now)
+- Gmail sync (deferred to Phase 4)
 
 ✅ **Required Practices**:
 - Idempotent imports (checksum-based)
