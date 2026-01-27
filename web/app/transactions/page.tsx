@@ -201,54 +201,68 @@ export default function TransactionsPage() {
               ）
             </p>
           </div>
-          <button
-            onClick={async () => {
-              setExporting(true);
-              try {
-                const response = await fetch("/api/exports/transactions", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    query,
-                    from,
-                    to,
-                    onlyUntriaged,
-                    minAmount,
-                    maxAmount,
-                    categoryId,
-                    includeOcr,
-                  }),
-                });
-                if (!response.ok) {
-                  const body = await response.json();
-                  throw new Error(body.error || "エクスポートに失敗しました。");
-                }
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Link
+              href="/transactions/new"
+              className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+            >
+              手入力
+            </Link>
+            <Link
+              href="/imports"
+              className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+            >
+              CSVインポート
+            </Link>
+            <button
+              onClick={async () => {
+                setExporting(true);
+                try {
+                  const response = await fetch("/api/exports/transactions", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      query,
+                      from,
+                      to,
+                      onlyUntriaged,
+                      minAmount,
+                      maxAmount,
+                      categoryId,
+                      includeOcr,
+                    }),
+                  });
+                  if (!response.ok) {
+                    const body = await response.json();
+                    throw new Error(body.error || "エクスポートに失敗しました。");
+                  }
 
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                link.href = url;
-                link.download = "transactions.csv";
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-                window.URL.revokeObjectURL(url);
-              } catch (err) {
-                console.error("Export error", err);
-                alert(
-                  err instanceof Error
-                    ? err.message
-                    : "エクスポートに失敗しました。"
-                );
-              } finally {
-                setExporting(false);
-              }
-            }}
-            disabled={exporting}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm disabled:opacity-50"
-          >
-            {exporting ? "エクスポート中..." : "CSVエクスポート"}
-          </button>
+                  const blob = await response.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const link = document.createElement("a");
+                  link.href = url;
+                  link.download = "transactions.csv";
+                  document.body.appendChild(link);
+                  link.click();
+                  link.remove();
+                  window.URL.revokeObjectURL(url);
+                } catch (err) {
+                  console.error("Export error", err);
+                  alert(
+                    err instanceof Error
+                      ? err.message
+                      : "エクスポートに失敗しました。"
+                  );
+                } finally {
+                  setExporting(false);
+                }
+              }}
+              disabled={exporting}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm disabled:opacity-50"
+            >
+              {exporting ? "エクスポート中..." : "CSVエクスポート"}
+            </button>
+          </div>
         </div>
 
         {/* Filters Panel */}

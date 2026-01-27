@@ -25,6 +25,8 @@ export default function RootLayout({
                 Dashboard
               </Link>
               <Link href="/transactions">Transactions</Link>
+              <Link href="/transactions/new">New Entry</Link>
+              <Link href="/imports">CSV Import</Link>
               <Link href="/triage">Triage Queue</Link>
               <Link href="/vendors">Vendors</Link>
               <Link href="/categories">Categories</Link>
