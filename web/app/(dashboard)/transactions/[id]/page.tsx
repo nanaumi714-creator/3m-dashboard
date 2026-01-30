@@ -15,6 +15,12 @@ type Transaction = Database["public"]["Tables"]["transactions"]["Row"] & {
 type Receipt = Database["public"]["Tables"]["receipts"]["Row"];
 type ExpenseCategory = Database["public"]["Tables"]["expense_categories"]["Row"];
 type PaymentMethod = Database["public"]["Tables"]["payment_methods"]["Row"];
+type OcrUsageSummary = {
+  used: number;
+  limit: number;
+  remaining: number;
+  periodStart: string;
+};
 
 function normalizeVendor(raw: string): string {
   return raw
@@ -47,6 +53,8 @@ export default function TransactionDetailPage({
   const [uploading, setUploading] = useState(false);
   const [ocringId, setOcringId] = useState<string | null>(null);
   const [runOcrOnUpload, setRunOcrOnUpload] = useState(true);
+  const [ocrUsage, setOcrUsage] = useState<OcrUsageSummary | null>(null);
+  const [ocrUsageError, setOcrUsageError] = useState<string | null>(null);
   const [editOccurredOn, setEditOccurredOn] = useState("");
   const [editAmountYen, setEditAmountYen] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -58,6 +66,7 @@ export default function TransactionDetailPage({
   const [editAuditNote, setEditAuditNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const isOcrLimitReached = ocrUsage ? ocrUsage.used >= ocrUsage.limit : false;
 
   useEffect(() => {
     async function loadData() {
@@ -122,6 +131,35 @@ export default function TransactionDetailPage({
     loadData();
   }, [params.id]);
 
+  async function refreshOcrUsage() {
+    try {
+      setOcrUsageError(null);
+      const response = await fetch("/api/ocr/usage");
+      const body = await response.json();
+
+      if (!response.ok) {
+        throw new Error(body.error || "OCR利用状況の取得に失敗しました。");
+      }
+
+      setOcrUsage(body as OcrUsageSummary);
+    } catch (err) {
+      console.error("Failed to load OCR usage:", err);
+      setOcrUsageError(
+        err instanceof Error ? err.message : "OCR利用状況の取得に失敗しました。"
+      );
+    }
+  }
+
+  useEffect(() => {
+    refreshOcrUsage();
+  }, []);
+
+  useEffect(() => {
+    if (isOcrLimitReached) {
+      setRunOcrOnUpload(false);
+    }
+  }, [isOcrLimitReached]);
+
   async function handleUpload(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
@@ -146,11 +184,17 @@ export default function TransactionDetailPage({
 
       if (!response.ok) {
         const body = await response.json();
+        if (response.status === 429) {
+          await refreshOcrUsage();
+        }
         throw new Error(body.error || "アップロードに失敗しました。");
       }
 
       const { receipt } = await response.json();
       setReceipts((prev) => [receipt, ...prev]);
+      if (runOcrOnUpload) {
+        await refreshOcrUsage();
+      }
       event.currentTarget.reset();
     } catch (err) {
       console.error("Upload error:", err);
@@ -168,6 +212,9 @@ export default function TransactionDetailPage({
       });
       const body = await response.json();
       if (!response.ok) {
+        if (response.status === 429) {
+          await refreshOcrUsage();
+        }
         throw new Error(body.error || "OCRに失敗しました。");
       }
 
@@ -182,6 +229,7 @@ export default function TransactionDetailPage({
             : receipt
         )
       );
+      await refreshOcrUsage();
     } catch (err) {
       console.error("OCR error:", err);
       alert(err instanceof Error ? err.message : "OCRに失敗しました。");
@@ -517,10 +565,31 @@ export default function TransactionDetailPage({
                 type="checkbox"
                 checked={runOcrOnUpload}
                 onChange={(event) => setRunOcrOnUpload(event.target.checked)}
+                disabled={isOcrLimitReached}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               アップロード後にOCRを実行する
             </label>
+            {ocrUsage ? (
+              <p className="text-xs text-gray-500">
+                今月のOCR利用: {ocrUsage.used}/{ocrUsage.limit}ページ
+              </p>
+            ) : (
+              <p className="text-xs text-gray-400">
+                {ocrUsageError || "OCR利用状況を確認中..."}
+              </p>
+            )}
+            {isOcrLimitReached && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                <p className="font-semibold">今月のOCR利用上限に達しました。</p>
+                <p className="mt-1">
+                  OCRボタンは無効です。手入力フォームで内容を登録してください。
+                </p>
+                <Link href="/transactions/new" className="mt-2 inline-flex text-blue-700 underline">
+                  手入力フォームへ
+                </Link>
+              </div>
+            )}
             <button
               type="submit"
               disabled={uploading}
@@ -568,10 +637,14 @@ export default function TransactionDetailPage({
                       </span>
                       <button
                         onClick={() => rerunOcr(receipt.id)}
-                        disabled={ocringId === receipt.id}
+                        disabled={ocringId === receipt.id || isOcrLimitReached}
                         className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
                       >
-                        {ocringId === receipt.id ? "OCR中..." : "OCR再実行"}
+                        {ocringId === receipt.id
+                          ? "OCR中..."
+                          : isOcrLimitReached
+                            ? "OCR上限超過"
+                            : "OCR再実行"}
                       </button>
                     </div>
                   </div>
