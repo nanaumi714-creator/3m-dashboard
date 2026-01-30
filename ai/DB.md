@@ -18,6 +18,7 @@ See `supabase/init.sql` for the actual DDL.
 | vendor_id| UUID | **Phase 2**: FK to vendors table |
 | fingerprint| TEXT | Derived hash for duplicate detection. |
 | duplicate_group_id| UUID | Nullable. If set, this transaction is part of a duplicate group. |
+| user_id| UUID | Owner user id for row-level security (auth.uid). |
 
 ### 2. `transaction_business_info`
 **Role**: The human judgment overlay.
@@ -32,17 +33,35 @@ See `supabase/init.sql` for the actual DDL.
 | judged_at | TIMESTAMP | Audit trail. |
 | note | TEXT | Audit note / context. |
 
-### 3. `import_sources`
+### 3. `receipts`
+**Role**: Attachments and OCR text linked to transactions.
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| transaction_id | UUID | FK to transactions (nullable for unlinked uploads). |
+| storage_url | TEXT | File location in storage. |
+| original_filename | TEXT | Original uploaded filename. |
+| content_type | TEXT | MIME type. |
+| file_size_bytes | INTEGER | File size in bytes. |
+| uploaded_at | TIMESTAMP | Upload timestamp. |
+| ocr_text | TEXT | OCR-extracted text. |
+| ocr_confidence | NUMERIC | OCR confidence score. |
+| user_id | UUID | Owner user id for row-level security (auth.uid). |
+
+### 4. `import_sources`
 **Role**: Traceability and Idempotency.
 
 | Column | Type | Purpose |
 |--------|------|---------|
-| file_name | TEXT | Name of imported file. |
-| file_checksum | TEXT | SHA256 of the CSV content. Used to skip re-imports. |
-| row_count | INTEGER | How many lines were in the file. |
+| source_type | TEXT | Source type (csv/gmail/form/manual). |
 | imported_at | TIMESTAMP | When it happened. |
+| file_path | TEXT | Imported file path (optional). |
+| checksum | TEXT | SHA256 of the CSV content. Used to skip re-imports. |
+| metadata | JSONB | Source-specific metadata. |
+| created_at | TIMESTAMP | Record creation time. |
+| user_id | UUID | Owner user id for row-level security (auth.uid). |
 
-### 4. `payment_methods`
+### 5. `payment_methods`
 **Role**: Master data for source of funds.
 
 | Column | Type | Purpose |
@@ -52,7 +71,7 @@ See `supabase/init.sql` for the actual DDL.
 
 ## Phase 2 Tables
 
-### 5. `expense_categories`
+### 6. `expense_categories`
 **Role**: Business expense categorization for better organization.
 
 | Column | Type | Purpose |
@@ -60,8 +79,9 @@ See `supabase/init.sql` for the actual DDL.
 | name | TEXT | Category name (e.g. "通信費", "交通費") |
 | description | TEXT | Detailed description |
 | is_active | BOOLEAN | Whether category is still in use |
+| user_id | UUID | Owner user id for row-level security (auth.uid). |
 
-### 6. `vendors`
+### 7. `vendors`
 **Role**: Master table for vendor normalization and automation.
 
 | Column | Type | Purpose |
@@ -70,8 +90,9 @@ See `supabase/init.sql` for the actual DDL.
 | description | TEXT | Additional vendor information |
 | default_category_id | UUID | Default expense category for this vendor |
 | is_active | BOOLEAN | Whether vendor is still active |
+| user_id | UUID | Owner user id for row-level security (auth.uid). |
 
-### 7. `vendor_aliases`
+### 8. `vendor_aliases`
 **Role**: Multiple names that map to the same canonical vendor.
 
 | Column | Type | Purpose |
@@ -80,7 +101,7 @@ See `supabase/init.sql` for the actual DDL.
 | alias | TEXT | Alternative name for the vendor |
 | confidence_score | NUMERIC | 0.0-1.0, for fuzzy matching quality |
 
-### 8. `vendor_rules`
+### 9. `vendor_rules`
 **Role**: Automation rules for vendor-based expense judgment.
 
 | Column | Type | Purpose |
@@ -96,7 +117,7 @@ See `supabase/init.sql` for the actual DDL.
 
 ## Phase 3 Tables
 
-### 9. `export_templates`
+### 10. `export_templates`
 **Role**: Saved export presets for CSV/Excel output.
 
 | Column | Type | Purpose |
@@ -107,7 +128,7 @@ See `supabase/init.sql` for the actual DDL.
 | filters | JSONB | Default filters |
 | created_at | TIMESTAMP | Created time |
 
-### 10. `export_history`
+### 11. `export_history`
 **Role**: Audit trail for export executions.
 
 | Column | Type | Purpose |
@@ -118,7 +139,7 @@ See `supabase/init.sql` for the actual DDL.
 | row_count | INTEGER | Rows exported |
 | created_at | TIMESTAMP | Export time |
 
-### 11. `saved_searches`
+### 12. `saved_searches`
 **Role**: Reusable advanced search presets.
 
 | Column | Type | Purpose |
@@ -128,7 +149,7 @@ See `supabase/init.sql` for the actual DDL.
 | filters | JSONB | Structured filters |
 | created_at | TIMESTAMP | Created time |
 
-### 12. `ocr_usage_logs`
+### 13. `ocr_usage_logs`
 **Role**: OCR usage tracking for monthly caps.
 
 | Column | Type | Purpose |
