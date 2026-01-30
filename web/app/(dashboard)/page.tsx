@@ -10,6 +10,15 @@ type Summary = {
   paymentMethodBreakdown: Record<string, number>;
 };
 
+type SummaryTransaction = {
+  amount_yen: number;
+  payment_methods: { name: string | null } | null;
+  transaction_business_info: {
+    is_business: boolean;
+    business_ratio: number;
+  } | null;
+};
+
 export default function DashboardPage() {
   const [summary, setSummary] = useState<Summary>({
     expenses: 0,
@@ -49,7 +58,7 @@ export default function DashboardPage() {
       let untriaged = 0;
       const paymentMethodBreakdown: Record<string, number> = {};
 
-      data?.forEach((tx: any) => {
+      (data as SummaryTransaction[] | null)?.forEach((tx) => {
         const amount = tx.amount_yen;
 
         // Breakdown
@@ -104,7 +113,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 24 }}>
+      <div className="card mt-6">
         <h2>支払い手段別支出</h2>
         <ul>
           {Object.entries(summary.paymentMethodBreakdown).map(
@@ -127,4 +136,3 @@ export default function DashboardPage() {
     </section>
   );
 }
-
