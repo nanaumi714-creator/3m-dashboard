@@ -3,7 +3,7 @@ import path from "path";
 import { promises as fs } from "fs";
 import crypto from "crypto";
 import { supabaseServer } from "@/lib/supabase-server";
-import { runGoogleVisionOcr } from "@/lib/google-vision";
+import { runEdgeOcr } from "@/lib/ocr-edge";
 
 const MAX_MONTHLY_OCR_PAGES = Number(process.env.OCR_MONTHLY_LIMIT || "1000");
 
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
       }
 
       try {
-        const { text, confidence } = await runGoogleVisionOcr(
+        const { text, confidence } = await runEdgeOcr(
           buffer.toString("base64"),
           file.type || null
         );

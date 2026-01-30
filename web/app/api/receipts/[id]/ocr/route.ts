@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import path from "path";
 import { promises as fs } from "fs";
 import { supabaseServer } from "@/lib/supabase-server";
-import { runGoogleVisionOcr } from "@/lib/google-vision";
+import { runEdgeOcr } from "@/lib/ocr-edge";
 
 const MAX_MONTHLY_OCR_PAGES = Number(process.env.OCR_MONTHLY_LIMIT || "1000");
 
@@ -62,7 +62,7 @@ export async function POST(
     }
 
     const buffer = await loadReceiptFile(receipt.storage_url);
-    const { text, confidence } = await runGoogleVisionOcr(
+    const { text, confidence } = await runEdgeOcr(
       buffer.toString("base64"),
       receipt.content_type || null
     );
