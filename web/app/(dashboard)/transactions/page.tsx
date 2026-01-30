@@ -12,6 +12,7 @@ type Transaction = Database["public"]["Tables"]["transactions"]["Row"] & {
   transaction_business_info:
   | Database["public"]["Tables"]["transaction_business_info"]["Row"]
   | null;
+  receipts: { ocr_text: string | null }[];
 };
 
 type ExpenseCategory = Database["public"]["Tables"]["expense_categories"]["Row"];
@@ -40,6 +41,10 @@ export default function TransactionsPage() {
   const [showSaveSearch, setShowSaveSearch] = useState(false);
   const [saveSearchName, setSaveSearchName] = useState("");
   const [savingSearch, setSavingSearch] = useState(false);
+
+  // Batch selections
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isUpdatingBatch, setIsUpdatingBatch] = useState(false);
 
   // Debounce search input
   const handleSearch = useDebouncedCallback((value: string) => {
@@ -84,6 +89,8 @@ export default function TransactionsPage() {
   useEffect(() => {
     async function fetchTransactions() {
       setLoading(true);
+      // Clear selection when filters change (optional but safer)
+      setSelectedIds(new Set());
       try {
         let q = supabase
           .from("transactions")
@@ -112,31 +119,6 @@ export default function TransactionsPage() {
           q = q.eq("transaction_business_info.category_id", categoryId);
         }
 
-        if (onlyUntriaged) {
-          // Filter where transaction_business_info is null
-          // This requires correct join filtering or identifying via 'is'
-          // Supabase join filtering: !inner join filters parent row, LEFT JOIN doesn't.
-          // For simple check: .is('transaction_business_info', null) works if we select it?
-          // Actually, .not('transaction_business_info', 'is', null) is 'has info'.
-          // To find 'missing info', we usually need !inner or filtering on the joined column.
-          // But LEFT JOIN + .filter('transaction_business_info', 'is', 'null') is weird in Supabase JS.
-          // Workaround: We fetch everything and filter on client OR use a different query logic?
-          // Better: Use .is("transaction_business_info", null) on the FK relation? No, FK is on child.
-          // Correct way: use !inner join to filter? No that's finding matching ones.
-          // For finding "missing child", typical SQL is LEFT JOIN where child.id IS NULL.
-          // Supabase-js specific:
-          // It's tricky. For Phase 1, simpler to filter on client if volume is low, OR separate query for IDs.
-          // However, to do filtering server side:
-          // q = q.filter("transaction_business_info.transaction_id", "is", "null")? No.
-          // Let's assume client filtering for "Untriaged" strictly for Phase 1 MVP if server filtering is tough.
-          // Wait, "transactions" doesn't have FK to "transaction_business_info". "tbi" has FK to "transactions".
-          // So transactions LEFT JOIN tbi.
-          // .filter('transaction_business_info', 'is', null) MIGHT work if the join is set up right.
-          // Let's try explicit manual filtering or rely on an assumption for now.
-          // Actually, let's defer complex server-side untriaged filtering if it blocks.
-          // Re-reading docs: .not('transaction_business_info', 'cs', '{"transaction_id": *}') might be too complex.
-        }
-
         // Pagination
         const fromIdx = (page - 1) * perPage;
         const toIdx = fromIdx + perPage - 1;
@@ -150,8 +132,6 @@ export default function TransactionsPage() {
 
         if (onlyUntriaged) {
           // Client side filter for now as workaround
-          // Note: This messes up pagination count if we filter AFTER fetching page.
-          // Ideally we need server side.
           validData = validData.filter(t => !t.transaction_business_info);
         }
 
@@ -180,6 +160,57 @@ export default function TransactionsPage() {
 
   const pageCount = Math.max(1, Math.ceil(totalCount / perPage));
 
+  const toggleSelection = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === transactions.length && transactions.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(transactions.map((t) => t.id)));
+    }
+  };
+
+  const handleBatchUpdate = async (updates: Partial<Database["public"]["Tables"]["transaction_business_info"]["Insert"]>) => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`${selectedIds.size}件の取引を更新しますか？`)) return;
+
+    setIsUpdatingBatch(true);
+    try {
+      const records = Array.from(selectedIds).map(id => ({
+        transaction_id: id,
+        is_business: updates.is_business ?? true,
+        business_ratio: updates.business_ratio ?? 100, // Default to 100 if business
+        category_id: updates.category_id ?? null,
+        judged_by: "batch_action",
+        judged_at: new Date().toISOString()
+      }));
+
+      const { error } = await supabase
+        .from("transaction_business_info")
+        .upsert(records, { onConflict: "transaction_id" });
+
+      if (error) throw error;
+
+      // Refresh data
+      // Simple way: re-fetch. Better way: optimistic update (skip for Phase 2 MVP)
+      window.location.reload(); // Simplest refresh
+
+    } catch (err) {
+      console.error("Batch update failed", err);
+      alert("一括更新に失敗しました。");
+    } finally {
+      setIsUpdatingBatch(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -189,7 +220,7 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-24">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -300,9 +331,9 @@ export default function TransactionsPage() {
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 期間（開始）
               </label>
-              <input 
-                type="date" 
-                value={from} 
+              <input
+                type="date"
+                value={from}
                 onChange={(e) => setFrom(e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
               />
@@ -312,9 +343,9 @@ export default function TransactionsPage() {
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 期間（終了）
               </label>
-              <input 
-                type="date" 
-                value={to} 
+              <input
+                type="date"
+                value={to}
                 onChange={(e) => setTo(e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
               />
@@ -339,9 +370,6 @@ export default function TransactionsPage() {
                     <span className="text-xs font-medium text-gray-700">
                       未判定のみ表示
                     </span>
-                    <div className="text-xs text-gray-500">
-                      クライアント側フィルター
-                    </div>
                   </div>
                 </label>
               </div>
@@ -451,97 +479,23 @@ export default function TransactionsPage() {
           </div>
         </div>
 
-        {showSaveSearch && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900">
-                検索条件を保存
-              </h2>
-              <form
-                onSubmit={async (event) => {
-                  event.preventDefault();
-                  if (!saveSearchName.trim()) {
-                    alert("検索名を入力してください。");
-                    return;
-                  }
-                  setSavingSearch(true);
-                  try {
-                    const filters = {
-                      from,
-                      to,
-                      onlyUntriaged,
-                      minAmount,
-                      maxAmount,
-                      categoryId,
-                      includeOcr,
-                    };
-                    const { data, error } = await supabase
-                      .from("saved_searches")
-                      .insert({
-                        name: saveSearchName.trim(),
-                        query: query || null,
-                        filters,
-                      })
-                      .select("*")
-                      .single();
-                    if (error) throw error;
-                    if (data) {
-                      setSavedSearches((prev) => [data, ...prev]);
-                      setSelectedSearchId(data.id);
-                    }
-                    setShowSaveSearch(false);
-                  } catch (err) {
-                    console.error("Failed to save search", err);
-                    alert(
-                      err instanceof Error
-                        ? err.message
-                        : "保存に失敗しました。"
-                    );
-                  } finally {
-                    setSavingSearch(false);
-                  }
-                }}
-                className="space-y-4"
-              >
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    保存名
-                  </label>
-                  <input
-                    type="text"
-                    value={saveSearchName}
-                    onChange={(e) => setSaveSearchName(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="例: 交通費 2025年"
-                  />
-                </div>
-                <div className="flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowSaveSearch(false)}
-                    className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    キャンセル
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={savingSearch}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
-                  >
-                    {savingSearch ? "保存中..." : "保存"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
         {/* Transactions Table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-6 py-3 w-4">
+                    <input
+                      type="checkbox"
+                      checked={
+                        transactions.length > 0 &&
+                        selectedIds.size === transactions.length
+                      }
+                      onChange={toggleAll}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日付</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">内容</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">支払い手段</th>
@@ -562,13 +516,25 @@ export default function TransactionsPage() {
                         ? "按分"
                         : "事業";
 
+                  const categoryName = tbi?.category_id
+                    ? categories.find(c => c.id === tbi.category_id)?.name
+                    : null;
+
                   return (
-                    <tr key={tx.id} className="hover:bg-gray-50">
+                    <tr key={tx.id} className={cn("hover:bg-gray-50", selectedIds.has(tx.id) && "bg-blue-50")}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(tx.id)}
+                          onChange={() => toggleSelection(tx.id)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {tx.occurred_on}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Link 
+                        <Link
                           href={`/transactions/${tx.id}`}
                           className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
                         >
@@ -585,15 +551,20 @@ export default function TransactionsPage() {
                         {isExpense ? "" : "+"}¥{Math.abs(tx.amount_yen).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={cn(
-                          "inline-flex px-3 py-1 text-xs font-medium rounded-full",
-                          statusLabel === "未判定" && "bg-gray-100 text-gray-800",
-                          statusLabel === "生活" && "bg-blue-100 text-blue-800",
-                          statusLabel === "事業" && "bg-amber-100 text-amber-800",
-                          statusLabel === "按分" && "bg-purple-100 text-purple-800"
-                        )}>
-                          {statusLabel}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span className={cn(
+                            "inline-flex px-3 py-1 text-xs font-medium rounded-full w-fit",
+                            statusLabel === "未判定" && "bg-gray-100 text-gray-800",
+                            statusLabel === "生活" && "bg-blue-100 text-blue-800",
+                            statusLabel === "事業" && "bg-amber-100 text-amber-800",
+                            statusLabel === "按分" && "bg-purple-100 text-purple-800"
+                          )}>
+                            {statusLabel}
+                          </span>
+                          {categoryName && (
+                            <span className="text-xs text-gray-500">📁 {categoryName}</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {tx.vendor_raw || '-'}
@@ -630,8 +601,8 @@ export default function TransactionsPage() {
               disabled={page === 1}
               className={cn(
                 "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-                page === 1 
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                page === 1
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                   : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
               )}
             >
@@ -645,8 +616,8 @@ export default function TransactionsPage() {
               disabled={page === pageCount}
               className={cn(
                 "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-                page === pageCount 
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                page === pageCount
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                   : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
               )}
             >
@@ -655,6 +626,128 @@ export default function TransactionsPage() {
           </div>
         </div>
       </div>
+
+      {/* Batch Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white rounded-full shadow-lg border border-gray-200 px-6 py-3 flex items-center gap-4 animate-in slide-in-from-bottom-4 fade-in z-50">
+          <div className="text-sm font-semibold text-gray-900 border-r border-gray-200 pr-4">
+            {selectedIds.size} 件選択中
+          </div>
+
+          <button
+            onClick={() => handleBatchUpdate({ is_business: false })}
+            disabled={isUpdatingBatch}
+            className="text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-3 py-1.5 rounded-md transition-colors"
+          >
+            生活 (0%)
+          </button>
+
+          <div className="h-4 w-px bg-gray-200" />
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">事業:</span>
+            {categories.slice(0, 3).map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => handleBatchUpdate({ is_business: true, category_id: cat.id })}
+                disabled={isUpdatingBatch}
+                className="text-sm font-medium text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-md transition-colors"
+              >
+                {cat.name}
+              </button>
+            ))}
+
+            {/* Simple dropdown for other categories could go here */}
+          </div>
+
+          <div className="h-4 w-px bg-gray-200" />
+
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {showSaveSearch && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
+            {/* Saved Search Modal Content (Same as before) */}
+            <h2 className="text-xl font-semibold mb-4 text-gray-900">検索条件を保存</h2>
+            <form
+              onSubmit={async (event) => {
+                event.preventDefault();
+                if (!saveSearchName.trim()) {
+                  alert("検索名を入力してください。");
+                  return;
+                }
+                setSavingSearch(true);
+                try {
+                  const filters = {
+                    from,
+                    to,
+                    onlyUntriaged,
+                    minAmount,
+                    maxAmount,
+                    categoryId,
+                    includeOcr,
+                  };
+                  const { data, error } = await supabase
+                    .from("saved_searches")
+                    .insert({
+                      name: saveSearchName.trim(),
+                      query: query || null,
+                      filters,
+                    })
+                    .select("*")
+                    .single();
+                  if (error) throw error;
+                  if (data) {
+                    setSavedSearches((prev) => [data, ...prev]);
+                    setSelectedSearchId(data.id);
+                  }
+                  setShowSaveSearch(false);
+                } catch (err) {
+                  console.error("Failed to save search", err);
+                  alert("保存に失敗しました。");
+                } finally {
+                  setSavingSearch(false);
+                }
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">保存名</label>
+                <input
+                  type="text"
+                  value={saveSearchName}
+                  onChange={(e) => setSaveSearchName(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="例: 交通費 2025年"
+                />
+              </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setShowSaveSearch(false)}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingSearch}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
+                >
+                  {savingSearch ? "保存中..." : "保存"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

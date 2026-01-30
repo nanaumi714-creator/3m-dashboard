@@ -13,7 +13,8 @@ const navItems = [
   { href: "/imports", label: "CSV Import" },
   { href: "/triage", label: "Triage Queue" },
   { href: "/vendors", label: "Vendors" },
-  { href: "/categories", label: "Categories" }
+  { href: "/categories", label: "Categories" },
+  { href: "/exports", label: "Export History" }
 ];
 
 export default function DashboardHeader() {

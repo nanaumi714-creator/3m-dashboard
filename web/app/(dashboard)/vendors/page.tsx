@@ -9,24 +9,48 @@ type ExpenseCategory = Database['public']['Tables']['expense_categories']['Row']
 
 export default function VendorsPage() {
   const [vendors, setVendors] = useState<Vendor[]>([])
-  const [categories, setCategories] = useState<ExpenseCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
-  const [newVendor, setNewVendor] = useState({ 
-    name: '', 
-    description: '', 
-    default_category_id: '' 
-  })
+  const [newVendor, setNewVendor] = useState({ name: "", description: "" })
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [categories, setCategories] = useState<ExpenseCategory[]>([])
 
   useEffect(() => {
-    loadData()
+    loadVendors();
   }, [])
 
-  async function loadData() {
+  function getSuggestions(input: string): string[] {
+    if (input.length < 2) return [];
+
+    const normalized = input.toLowerCase().replace(/\s+/g, "");
+    const similar: string[] = [];
+
+    // Find similar vendor names using simple string matching
+    vendors.forEach((vendor) => {
+      const vendorNorm = vendor.name.toLowerCase().replace(/\s+/g, "");
+
+      // Partial match
+      if (vendorNorm.includes(normalized) && vendor.name !== input) {
+        similar.push(vendor.name);
+      }
+    });
+
+    // Also check transactions for common vendor_raw values
+    // (Would need API call in real implementation)
+
+    return similar.slice(0, 5);
+  }
+
+  function handleNameChange(value: string) {
+    setNewVendor({ ...newVendor, name: value });
+    setSuggestions(getSuggestions(value));
+  }
+
+  async function loadVendors() { // Renamed from loadData
     try {
       setLoading(true)
-      
+
       // Load vendors with their default categories
       const { data: vendorsData, error: vendorsError } = await supabase
         .from('vendors')
@@ -62,7 +86,7 @@ export default function VendorsPage() {
 
   async function handleAddVendor(e: React.FormEvent) {
     e.preventDefault()
-    
+
     if (!newVendor.name.trim()) {
       alert('Vendor name is required')
       return
@@ -130,7 +154,7 @@ export default function VendorsPage() {
 
         {/* Add Vendor Button */}
         <div className="mb-6">
-          <button 
+          <button
             onClick={() => setShowAddForm(true)}
             className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
           >
@@ -232,26 +256,24 @@ export default function VendorsPage() {
                     </div>
                   )}
                 </div>
-                <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${
-                  vendor.is_active 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-red-100 text-red-800'
-                }`}>
+                <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${vendor.is_active
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-red-100 text-red-800'
+                  }`}>
                   {vendor.is_active ? 'アクティブ' : '無効'}
                 </span>
               </div>
-              
+
               <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                 <span className="text-xs text-gray-500">
                   {new Date(vendor.created_at).toLocaleDateString('ja-JP')}
                 </span>
-                <button 
+                <button
                   onClick={() => toggleVendorStatus(vendor.id, vendor.is_active)}
-                  className={`text-sm font-medium px-3 py-1 rounded-md transition-colors ${
-                    vendor.is_active 
-                      ? 'text-red-600 hover:bg-red-50' 
-                      : 'text-green-600 hover:bg-green-50'
-                  }`}
+                  className={`text-sm font-medium px-3 py-1 rounded-md transition-colors ${vendor.is_active
+                    ? 'text-red-600 hover:bg-red-50'
+                    : 'text-green-600 hover:bg-green-50'
+                    }`}
                 >
                   {vendor.is_active ? '無効にする' : '有効にする'}
                 </button>

@@ -131,7 +131,52 @@ def import_csv(
     duplicate_count = len(transactions) - len(new_transactions)
 
     if new_transactions:
-        supabase.table("transactions").insert(new_transactions).execute()
+        # Pre-load vendors for resolution (naive approach: load all names if small)
+        # For scalability, we should query specific names. But for Phase 2 MVP, loading all vendors is fine.
+        vendors_resp = supabase.table("vendors").select("id, name").execute()
+        vendor_map = {row["name"]: row["id"] for row in vendors_resp.data}
+        
+        # Link vendor_id
+        for tx in new_transactions:
+            # Try exact match on normalized vendor name (assuming vendors.name IS normalized)
+            # OR try match on vendor_norm.
+            # In init.sql, vendors.name is unique. 
+            # We assume vendors.name stores the 'vendor_norm' representation or detailed name?
+            # Let's match vendor_norm first.
+            if tx["vendor_norm"] in vendor_map:
+                tx["vendor_id"] = vendor_map[tx["vendor_norm"]]
+        
+        # Insert transactions
+        inserted_data = supabase.table("transactions").insert(new_transactions).execute()
+        inserted_txs = inserted_data.data if inserted_data.data else []
+        
+        # Setup Rules
+        rules_resp = supabase.table("vendor_rules").select("*").eq("is_active", True).order("rule_priority").execute()
+        rules = rules_resp.data
+        
+        business_infos = []
+        for tx in inserted_txs:
+            if not tx.get("vendor_id"):
+                continue
+                
+            # Find matching rule
+            matched_rule = next((r for r in rules if r["vendor_id"] == tx["vendor_id"]), None)
+            
+            if matched_rule:
+                business_infos.append({
+                    "transaction_id": tx["id"],
+                    "is_business": matched_rule["is_business"],
+                    "business_ratio": matched_rule["business_ratio"],
+                    "category_id": matched_rule["category_id"],
+                    "judged_by": "system_rule",
+                    "judged_at": datetime.now().isoformat(),
+                    "audit_note": f"Applied rule: {matched_rule.get('note', '')}"
+                })
+        
+        if business_infos:
+            supabase.table("transaction_business_info").insert(business_infos).execute()
+            print(f"✅  Applied rules to {len(business_infos)} transactions")
+
     inserted_count = len(new_transactions)
     skipped_count = len(transactions) - inserted_count
 

@@ -286,4 +286,151 @@ create index if not exists idx_receipts_ocr_text_bigm
 
 comment on index idx_transactions_description_bigm is 'Phase 3: pg_bigm index for description searches.';
 comment on index idx_transactions_vendor_raw_bigm is 'Phase 3: pg_bigm index for vendor_raw searches.';
-comment on index idx_receipts_ocr_text_bigm is 'Phase 3: pg_bigm index for OCR text searches.';
+-- ============================================================================
+-- Phase 4: Security & Multi-tenancy (RLS)
+-- ============================================================================
+
+-- 1. Add user_id to core tables
+alter table transactions add column if not exists user_id uuid references auth.users(id);
+alter table payment_methods add column if not exists user_id uuid references auth.users(id);
+alter table import_sources add column if not exists user_id uuid references auth.users(id);
+alter table vendors add column if not exists user_id uuid references auth.users(id);
+alter table expense_categories add column if not exists user_id uuid references auth.users(id);
+alter table receipts add column if not exists user_id uuid references auth.users(id);
+alter table saved_searches add column if not exists user_id uuid references auth.users(id);
+alter table export_history add column if not exists user_id uuid references auth.users(id);
+
+-- 2. Enable RLS
+alter table transactions enable row level security;
+alter table payment_methods enable row level security;
+alter table import_sources enable row level security;
+alter table vendors enable row level security;
+alter table expense_categories enable row level security;
+alter table receipts enable row level security;
+alter table saved_searches enable row level security;
+alter table export_history enable row level security;
+-- vendor_rules, vendor_aliases, ocr_usage_logs should also be secured via their parents or directly
+alter table vendor_rules enable row level security;
+alter table vendor_aliases enable row level security;
+alter table transaction_business_info enable row level security;
+
+-- 3. Define Policies (Simple "Own Data" policy)
+
+-- Transactions
+create policy "Users can view their own transactions" on transactions
+  for select using (auth.uid() = user_id);
+create policy "Users can insert their own transactions" on transactions
+  for insert with check (auth.uid() = user_id);
+create policy "Users can update their own transactions" on transactions
+  for update using (auth.uid() = user_id);
+create policy "Users can delete their own transactions" on transactions
+  for delete using (auth.uid() = user_id);
+
+-- Payment Methods (Allow read system defaults where user_id is null?)
+create policy "Users can view own or system payment methods" on payment_methods
+  for select using (auth.uid() = user_id or user_id is null);
+create policy "Users can manage own payment methods" on payment_methods
+  for all using (auth.uid() = user_id);
+
+-- Import Sources
+create policy "Users can manage own imports" on import_sources
+  for all using (auth.uid() = user_id);
+
+-- Vendors (Global read? Or private? Let's assume private for Phase 4 or Global Read/Private Write)
+-- For this app, let's make it private per user to be safe.
+create policy "Users can manage own vendors" on vendors
+  for all using (auth.uid() = user_id);
+
+-- Vendor Rules, Aliases (Inherit from Vendor or direct user_id? Direct easier if we added it, but valid via join too)
+-- For simplicity, let's rely on app setting user_id or assume privacy.
+-- Actually we didn't add user_id to vendor_rules. access via vendor?
+-- RLS using join:
+create policy "Users can manage own vendor rules" on vendor_rules
+  for all using (
+    exists (select 1 from vendors v where v.id = vendor_rules.vendor_id and v.user_id = auth.uid())
+  );
+  
+create policy "Users can manage own vendor aliases" on vendor_aliases
+  for all using (
+    exists (select 1 from vendors v where v.id = vendor_aliases.vendor_id and v.user_id = auth.uid())
+  );
+
+-- Transaction Business Info (Inherit from transaction)
+create policy "Users can manage own business info" on transaction_business_info
+  for all using (
+    exists (select 1 from transactions t where t.id = transaction_business_info.transaction_id and t.user_id = auth.uid())
+  );
+
+-- Receipts
+create policy "Users can manage own receipts" on receipts
+  for all using (auth.uid() = user_id);
+
+-- Expense Categories (System defaults + user custom)
+create policy "Users can view own or system categories" on expense_categories
+  for select using (auth.uid() = user_id or user_id is null);
+create policy "Users can manage own categories" on expense_categories
+  for all using (auth.uid() = user_id);
+
+-- ============================================================================
+-- Phase 2.5: Multiple CSV Format Support
+-- ============================================================================
+
+-- import_configs: カスタムCSV形式の定義
+create table if not exists import_configs (
+  id uuid primary key default gen_random_uuid(),
+  name text not null, -- 設定名（例: "三菱UFJ銀行"）
+  source_type text not null, -- csv_bank/csv_dpay/csv_custom
+  column_mapping jsonb not null, -- カラムマッピング定義
+  parser_options jsonb, -- パーサー固有オプション
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  
+  constraint chk_import_configs_source_type check (source_type in ('csv_card', 'csv_bank', 'csv_dpay', 'csv_custom'))
+);
+
+comment on table import_configs is 'Phase 2: Custom CSV format configurations';
+comment on column import_configs.column_mapping is 'JSON mapping of CSV columns to transaction fields';
+comment on column import_configs.parser_options is 'Parser-specific options like date format, encoding, etc';
+
+-- Trigger: auto-update updated_at on import_configs
+drop trigger if exists trg_import_configs_set_updated_at on import_configs;
+create trigger trg_import_configs_set_updated_at
+before update on import_configs
+for each row execute function set_updated_at();
+
+-- Seed data: 基本的なインポート設定
+insert into import_configs (name, source_type, column_mapping, parser_options) values
+  ('クレジットカード標準', '
+
+csv_card', 
+   '{"occurred_on": "transaction_date", "amount_yen": "amount", "description": "memo", "vendor_raw": "merchant"}',
+   '{"date_format": "YYYY-MM-DD", "encoding": "utf-8"}'),
+  ('銀行口座明細', 'csv_bank', 
+   '{"occurred_on": "取引日", "amount_yen": "お支払金額", "description": "摘要"}',
+   '{"date_format": "YYYY/MM/DD", "encoding": "shift_jis", "skip_rows": 1}'),
+  ('d払い明細', 'csv_dpay', 
+   '{"occurred_on": "ご利用日", "amount_yen": "ご利用金額", "description": "ご利用先"}',
+   '{"date_format": "YYYY/MM/DD", "encoding": "shift_jis"}')
+on conflict do nothing;
+
+-- ============================================================================
+-- Helper Functions
+-- ============================================================================
+
+-- Helper function: find duplicate transactions
+create or replace function find_duplicate_transactions()
+returns setof transactions
+language sql
+as $$
+  select t.*
+  from transactions t
+  where fingerprint in (
+    select fingerprint
+    from transactions
+    group by fingerprint
+    having count(*) > 1
+  )
+  order by fingerprint, occurred_on;
+$$;
+
