@@ -1,5 +1,4 @@
 import "./styles/globals.css";
-import Link from "next/link";
 
 export const metadata = {
   title: "3m Dashboard",
@@ -13,27 +12,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <body>
-        <main>
-          <header>
-            <div>
-              <h1>3m Dashboard</h1>
-              <p className="notice">ローカル運用向けの取引可視化MVP</p>
-            </div>
-            <nav>
-              <Link href="/" className="active">
-                Dashboard
-              </Link>
-              <Link href="/transactions">Transactions</Link>
-              <Link href="/transactions/new">New Entry</Link>
-              <Link href="/imports">CSV Import</Link>
-              <Link href="/triage">Triage Queue</Link>
-              <Link href="/vendors">Vendors</Link>
-              <Link href="/categories">Categories</Link>
-            </nav>
-          </header>
-          {children}
-        </main>
+      <body className="min-h-screen bg-gray-50 text-gray-900">
+        {children}
       </body>
     </html>
   );
