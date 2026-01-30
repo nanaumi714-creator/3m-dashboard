@@ -279,6 +279,8 @@ Vercel で自動化する場合は `vercel.json` の cron 設定を参照
 - [セキュリティ設定](.docs/security.md) - RLS/認証設定
 - [トラブルシューティング](.docs/troubleshooting.md) - よくある問題
 - [クラウド移行](.docs/migration.md) - Local → Cloud 移行手順
+- [外部サービスセットアップ](.docs/external_services_setup.md) - Supabase/Vercel/GCP/Gmail API/Sentry
+- [Dev Container使用法](.docs/devcontainer_guide.md) - VS Code開発環境
 
 ### 機能別ガイド
 - [OCR使用法](.docs/ocr_guide.md)
