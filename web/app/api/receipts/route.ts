@@ -1,20 +1,25 @@
 import { NextResponse } from "next/server";
-import path from "path";
-import { promises as fs } from "fs";
 import crypto from "crypto";
+import { createClient } from "@supabase/supabase-js";
 import { supabaseServer } from "@/lib/supabase-server";
 import { runGoogleVisionOcr } from "@/lib/google-vision";
+import { Database } from "@/lib/database.types";
 
 const MAX_MONTHLY_OCR_PAGES = Number(process.env.OCR_MONTHLY_LIMIT || "1000");
+
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
 function sanitizeFilename(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
-async function ensureUploadDir() {
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
-  await fs.mkdir(uploadDir, { recursive: true });
-  return uploadDir;
+function getAccessToken(request: Request) {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader) return null;
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  return match?.[1] ?? null;
 }
 
 async function getMonthlyOcrUsage() {
@@ -40,6 +45,21 @@ export async function POST(request: Request) {
     const transactionId = formData.get("transactionId");
     const file = formData.get("file");
     const runOcr = formData.get("runOcr") === "true";
+    const accessToken = getAccessToken(request);
+
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: "Authorization token is required." },
+        { status: 401 }
+      );
+    }
+
+    if (!supabaseAnonKey) {
+      return NextResponse.json(
+        { error: "Supabase anon key is missing." },
+        { status: 500 }
+      );
+    }
 
     if (!transactionId || typeof transactionId !== "string") {
       return NextResponse.json(
@@ -52,28 +72,58 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "file is required." }, { status: 400 });
     }
 
+    const supabaseUser = createClient<Database>(
+      supabaseUrl,
+      supabaseAnonKey,
+      {
+        auth: { persistSession: false, autoRefreshToken: false },
+        global: {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+      }
+    );
+    const { data: authData, error: authError } =
+      await supabaseUser.auth.getUser();
+    const user = authData?.user;
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Invalid session." },
+        { status: 401 }
+      );
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
-    const uploadDir = await ensureUploadDir();
     const safeName = sanitizeFilename(file.name || "receipt");
     const filename = `${crypto.randomUUID()}-${safeName}`;
-    const fullPath = path.join(uploadDir, filename);
-    await fs.writeFile(fullPath, buffer);
+    const storagePath = `${user.id}/${filename}`;
 
-    const storageUrl = `/uploads/${filename}`;
+    const { error: uploadError } = await supabaseUser.storage
+      .from("receipts")
+      .upload(storagePath, buffer, {
+        contentType: file.type || "application/octet-stream",
+        upsert: false,
+      });
 
-    const { data: receipt, error: insertError } = await supabaseServer
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data: receipt, error: insertError } = await supabaseUser
       .from("receipts")
       .insert({
         transaction_id: transactionId,
-        storage_url: storageUrl,
+        storage_url: storagePath,
         original_filename: file.name || null,
         content_type: file.type || null,
         file_size_bytes: buffer.length,
+        user_id: user.id,
       })
       .select("*")
       .single();
 
     if (insertError || !receipt) {
+      await supabaseUser.storage.from("receipts").remove([storagePath]);
       throw insertError || new Error("Failed to create receipt.");
     }
 

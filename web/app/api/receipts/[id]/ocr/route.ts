@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import path from "path";
-import { promises as fs } from "fs";
 import { supabaseServer } from "@/lib/supabase-server";
 import { runGoogleVisionOcr } from "@/lib/google-vision";
 
@@ -22,16 +20,15 @@ async function getMonthlyOcrUsage() {
 }
 
 async function loadReceiptFile(storageUrl: string) {
-  if (storageUrl.startsWith("http")) {
-    const response = await fetch(storageUrl);
-    if (!response.ok) {
-      throw new Error("Failed to download receipt file.");
-    }
-    return Buffer.from(await response.arrayBuffer());
+  const { data, error } = await supabaseServer.storage
+    .from("receipts")
+    .download(storageUrl);
+
+  if (error || !data) {
+    throw error || new Error("Failed to download receipt file.");
   }
 
-  const localPath = path.join(process.cwd(), "public", storageUrl);
-  return fs.readFile(localPath);
+  return Buffer.from(await data.arrayBuffer());
 }
 
 export async function POST(

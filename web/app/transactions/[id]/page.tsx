@@ -40,6 +40,8 @@ export default function TransactionDetailPage({
 }) {
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [receiptLinks, setReceiptLinks] = useState<Record<string, string>>({});
+  const [receiptLinkError, setReceiptLinkError] = useState<string | null>(null);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,6 +124,54 @@ export default function TransactionDetailPage({
     loadData();
   }, [params.id]);
 
+  useEffect(() => {
+    async function updateReceiptLinks() {
+      if (receipts.length === 0) {
+        setReceiptLinks({});
+        setReceiptLinkError(null);
+        return;
+      }
+
+      setReceiptLinkError(null);
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+
+      if (sessionError) {
+        setReceiptLinkError("署名付きURLの生成に失敗しました。");
+        setReceiptLinks({});
+        return;
+      }
+
+      if (!sessionData.session) {
+        setReceiptLinkError("証憑を表示するにはログインが必要です。");
+        setReceiptLinks({});
+        return;
+      }
+
+      const entries = await Promise.all(
+        receipts.map(async (receipt) => {
+          const { data, error } = await supabase.storage
+            .from("receipts")
+            .createSignedUrl(receipt.storage_url, 60 * 10);
+          return [
+            receipt.id,
+            error || !data?.signedUrl ? "" : data.signedUrl,
+          ] as const;
+        })
+      );
+
+      const nextLinks: Record<string, string> = {};
+      for (const [id, url] of entries) {
+        if (url) {
+          nextLinks[id] = url;
+        }
+      }
+      setReceiptLinks(nextLinks);
+    }
+
+    void updateReceiptLinks();
+  }, [receipts]);
+
   async function handleUpload(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
@@ -134,6 +184,15 @@ export default function TransactionDetailPage({
 
     setUploading(true);
     try {
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+      if (sessionError) {
+        throw sessionError;
+      }
+      if (!sessionData.session) {
+        throw new Error("ログインが必要です。");
+      }
+
       const payload = new FormData();
       payload.append("transactionId", params.id);
       payload.append("file", file);
@@ -141,6 +200,9 @@ export default function TransactionDetailPage({
 
       const response = await fetch("/api/receipts", {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
         body: payload,
       });
 
@@ -544,14 +606,26 @@ export default function TransactionDetailPage({
                 >
                   <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <a
-                        href={receipt.storage_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-blue-600 hover:underline text-sm break-all"
-                      >
-                        {receipt.original_filename || receipt.storage_url}
-                      </a>
+                      {receiptLinks[receipt.id] ? (
+                        <a
+                          href={receiptLinks[receipt.id]}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 hover:underline text-sm break-all"
+                        >
+                          {receipt.original_filename || receipt.storage_url}
+                        </a>
+                      ) : (
+                        <span className="text-sm text-gray-500 break-all">
+                          {receipt.original_filename || receipt.storage_url}
+                        </span>
+                      )}
+                      {!receiptLinks[receipt.id] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {receiptLinkError ||
+                            "署名付きURLの生成に失敗しました。"}
+                        </p>
+                      )}
                       <p className="text-xs text-gray-500 mt-1">
                         {receipt.uploaded_at}
                       </p>
