@@ -47,20 +47,6 @@ export async function POST(request: Request) {
     const runOcr = formData.get("runOcr") === "true";
     const accessToken = getAccessToken(request);
 
-    if (!accessToken) {
-      return NextResponse.json(
-        { error: "Authorization token is required." },
-        { status: 401 }
-      );
-    }
-
-    if (!supabaseAnonKey) {
-      return NextResponse.json(
-        { error: "Supabase anon key is missing." },
-        { status: 500 }
-      );
-    }
-
     if (!transactionId || typeof transactionId !== "string") {
       return NextResponse.json(
         { error: "transactionId is required." },
@@ -72,33 +58,48 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "file is required." }, { status: 400 });
     }
 
-    const supabaseUser = createClient<Database>(
-      supabaseUrl,
-      supabaseAnonKey,
-      {
-        auth: { persistSession: false, autoRefreshToken: false },
-        global: {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        },
-      }
-    );
-    const { data: authData, error: authError } =
-      await supabaseUser.auth.getUser();
-    const user = authData?.user;
+    let userId: string | null = null;
+    let uploadClient = supabaseServer;
 
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Invalid session." },
-        { status: 401 }
+    if (accessToken) {
+      if (!supabaseAnonKey) {
+        return NextResponse.json(
+          { error: "Supabase anon key is missing." },
+          { status: 500 }
+        );
+      }
+
+      const supabaseUser = createClient<Database>(
+        supabaseUrl,
+        supabaseAnonKey,
+        {
+          auth: { persistSession: false, autoRefreshToken: false },
+          global: {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          },
+        }
       );
+      const { data: authData, error: authError } =
+        await supabaseUser.auth.getUser();
+      const user = authData?.user;
+
+      if (authError || !user) {
+        return NextResponse.json(
+          { error: "Invalid session." },
+          { status: 401 }
+        );
+      }
+
+      userId = user.id;
+      uploadClient = supabaseUser;
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const safeName = sanitizeFilename(file.name || "receipt");
     const filename = `${crypto.randomUUID()}-${safeName}`;
-    const storagePath = `${user.id}/${filename}`;
+    const storagePath = userId ? `${userId}/${filename}` : filename;
 
-    const { error: uploadError } = await supabaseUser.storage
+    const { error: uploadError } = await uploadClient.storage
       .from("receipts")
       .upload(storagePath, buffer, {
         contentType: file.type || "application/octet-stream",
@@ -109,7 +110,7 @@ export async function POST(request: Request) {
       throw uploadError;
     }
 
-    const { data: receipt, error: insertError } = await supabaseUser
+    const { data: receipt, error: insertError } = await supabaseServer
       .from("receipts")
       .insert({
         transaction_id: transactionId,
@@ -117,13 +118,13 @@ export async function POST(request: Request) {
         original_filename: file.name || null,
         content_type: file.type || null,
         file_size_bytes: buffer.length,
-        user_id: user.id,
+        user_id: userId,
       })
       .select("*")
       .single();
 
     if (insertError || !receipt) {
-      await supabaseUser.storage.from("receipts").remove([storagePath]);
+      await uploadClient.storage.from("receipts").remove([storagePath]);
       throw insertError || new Error("Failed to create receipt.");
     }
 

@@ -133,30 +133,15 @@ export default function TransactionDetailPage({
       }
 
       setReceiptLinkError(null);
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
-
-      if (sessionError) {
-        setReceiptLinkError("署名付きURLの生成に失敗しました。");
-        setReceiptLinks({});
-        return;
-      }
-
-      if (!sessionData.session) {
-        setReceiptLinkError("証憑を表示するにはログインが必要です。");
-        setReceiptLinks({});
-        return;
-      }
-
       const entries = await Promise.all(
         receipts.map(async (receipt) => {
-          const { data, error } = await supabase.storage
-            .from("receipts")
-            .createSignedUrl(receipt.storage_url, 60 * 10);
-          return [
-            receipt.id,
-            error || !data?.signedUrl ? "" : data.signedUrl,
-          ] as const;
+          const response = await fetch(`/api/receipts/${receipt.id}/download`);
+          if (!response.ok) {
+            return [receipt.id, ""] as const;
+          }
+
+          const body = (await response.json()) as { signedUrl?: string };
+          return [receipt.id, body.signedUrl || ""] as const;
         })
       );
 
@@ -165,6 +150,9 @@ export default function TransactionDetailPage({
         if (url) {
           nextLinks[id] = url;
         }
+      }
+      if (Object.keys(nextLinks).length === 0) {
+        setReceiptLinkError("署名付きURLの生成に失敗しました。");
       }
       setReceiptLinks(nextLinks);
     }
@@ -184,15 +172,6 @@ export default function TransactionDetailPage({
 
     setUploading(true);
     try {
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
-      if (sessionError) {
-        throw sessionError;
-      }
-      if (!sessionData.session) {
-        throw new Error("ログインが必要です。");
-      }
-
       const payload = new FormData();
       payload.append("transactionId", params.id);
       payload.append("file", file);
@@ -200,9 +179,6 @@ export default function TransactionDetailPage({
 
       const response = await fetch("/api/receipts", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${sessionData.session.access_token}`,
-        },
         body: payload,
       });
 
