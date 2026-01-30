@@ -194,3 +194,7 @@ Advanced Search → saved_searches (query presets)
      ↓
 Export → export_templates → export_history
 ```
+
+**Receipts Storage Notes**
+- `receipts.user_id` stores the Supabase auth user id to align Storage ownership.
+- `receipts.storage_url` stores the Storage path (bucket object key), not a public URL.

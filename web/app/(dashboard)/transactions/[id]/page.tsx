@@ -46,6 +46,8 @@ export default function TransactionDetailPage({
 }) {
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [receiptLinks, setReceiptLinks] = useState<Record<string, string>>({});
+  const [receiptLinkError, setReceiptLinkError] = useState<string | null>(null);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,7 +153,7 @@ export default function TransactionDetailPage({
   }
 
   useEffect(() => {
-    refreshOcrUsage();
+    void refreshOcrUsage();
   }, []);
 
   useEffect(() => {
@@ -159,6 +161,47 @@ export default function TransactionDetailPage({
       setRunOcrOnUpload(false);
     }
   }, [isOcrLimitReached]);
+
+  useEffect(() => {
+    async function updateReceiptLinks() {
+      if (receipts.length === 0) {
+        setReceiptLinks({});
+        setReceiptLinkError(null);
+        return;
+      }
+
+      setReceiptLinkError(null);
+
+      const entries = await Promise.all(
+        receipts.map(async (receipt) => {
+          try {
+            const response = await fetch(`/api/receipts/${receipt.id}/download`);
+            if (!response.ok) {
+              return [receipt.id, ""] as const;
+            }
+
+            const body = (await response.json()) as { signedUrl?: string };
+            return [receipt.id, body.signedUrl || ""] as const;
+          } catch {
+            return [receipt.id, ""] as const;
+          }
+        })
+      );
+
+      const nextLinks: Record<string, string> = {};
+      for (const [id, url] of entries) {
+        if (url) nextLinks[id] = url;
+      }
+
+      if (Object.keys(nextLinks).length === 0) {
+        setReceiptLinkError("署名付きURLの生成に失敗しました。");
+      }
+
+      setReceiptLinks(nextLinks);
+    }
+
+    void updateReceiptLinks();
+  }, [receipts]);
 
   async function handleUpload(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -613,14 +656,26 @@ export default function TransactionDetailPage({
                 >
                   <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <a
-                        href={receipt.storage_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-blue-600 hover:underline text-sm break-all"
-                      >
-                        {receipt.original_filename || receipt.storage_url}
-                      </a>
+                      {receiptLinks[receipt.id] ? (
+                        <a
+                          href={receiptLinks[receipt.id]}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 hover:underline text-sm break-all"
+                        >
+                          {receipt.original_filename || receipt.storage_url}
+                        </a>
+                      ) : (
+                        <span className="text-sm text-gray-500 break-all">
+                          {receipt.original_filename || receipt.storage_url}
+                        </span>
+                      )}
+                      {!receiptLinks[receipt.id] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {receiptLinkError ||
+                            "署名付きURLの生成に失敗しました。"}
+                        </p>
+                      )}
                       <p className="text-xs text-gray-500 mt-1">
                         {receipt.uploaded_at}
                       </p>
