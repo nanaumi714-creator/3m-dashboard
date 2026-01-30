@@ -1,34 +1,58 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 
-const authCookieKey = "sb-auth-token";
+export async function middleware(request: NextRequest) {
+  const res = NextResponse.next();
+  const supabase = createMiddlewareClient({ req: request, res });
 
-const publicPrefixes = ["/login", "/api", "/_next", "/favicon.ico"];
+  // Refresh session if expired
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  // Protect dashboard routes
+  if (request.nextUrl.pathname.startsWith("/dashboard") ||
+    request.nextUrl.pathname.startsWith("/transactions") ||
+    request.nextUrl.pathname.startsWith("/vendors") ||
+    request.nextUrl.pathname.startsWith("/categories") ||
+    request.nextUrl.pathname.startsWith("/receipts") ||
+    request.nextUrl.pathname.startsWith("/reports") ||
+    request.nextUrl.pathname.startsWith("/templates") ||
+    request.nextUrl.pathname.startsWith("/gmail") ||
+    request.nextUrl.pathname.startsWith("/duplicates")) {
 
-  if (publicPrefixes.some((prefix) => pathname.startsWith(prefix))) {
-    return NextResponse.next();
-  }
-
-  const authCookie = request.cookies.get(authCookieKey)?.value;
-
-  if (!authCookie) {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
-
-  try {
-    const session = JSON.parse(decodeURIComponent(authCookie));
-    if (!session?.access_token) {
-      return NextResponse.redirect(new URL("/login", request.url));
+    if (!session) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/login";
+      redirectUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
+      return NextResponse.redirect(redirectUrl);
     }
-  } catch {
-    return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  return NextResponse.next();
+  // Redirect authenticated users away from auth pages
+  if (session && (
+    request.nextUrl.pathname === "/login" ||
+    request.nextUrl.pathname === "/signup"
+  )) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  return res;
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image).*)"]
+  matcher: [
+    "/dashboard/:path*",
+    "/transactions/:path*",
+    "/vendors/:path*",
+    "/categories/:path*",
+    "/receipts/:path*",
+    "/reports/:path*",
+    "/templates/:path*",
+    "/gmail/:path*",
+    "/duplicates/:path*",
+    "/login",
+    "/signup",
+  ],
 };
