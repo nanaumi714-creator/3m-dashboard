@@ -643,7 +643,7 @@ export default function TransactionDetailPage({
                         {ocringId === receipt.id
                           ? "OCR中..."
                           : isOcrLimitReached
-                            ? "上限超過"
+                            ? "OCR上限超過"
                             : "OCR再実行"}
                       </button>
                     </div>
