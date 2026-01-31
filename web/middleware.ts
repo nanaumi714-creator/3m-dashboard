@@ -23,6 +23,11 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/duplicates")) {
 
     if (!session) {
+      // Check for auth bypass in local development
+      if (process.env.NEXT_PUBLIC_DISABLE_AUTH === "true") {
+        return res;
+      }
+
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = "/login";
       redirectUrl.searchParams.set("redirectTo", request.nextUrl.pathname);

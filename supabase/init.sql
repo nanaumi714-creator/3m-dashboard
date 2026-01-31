@@ -192,7 +192,7 @@ comment on table vendor_rules is 'Phase 2: Automation rules for vendor-based exp
 -- Phase 3: OCR + Export + Advanced Search
 -- ============================================================================
 
-create extension if not exists pg_bigm;
+create extension if not exists pg_trgm;
 
 -- export_templates: saved export presets
 create table if not exists export_templates (
@@ -275,17 +275,17 @@ comment on column ocr_usage_logs.request_at is 'Timestamp when OCR was requested
 create index if not exists idx_ocr_usage_logs_request_at on ocr_usage_logs(request_at);
 
 -- Search indexes for pg_bigm
-create index if not exists idx_transactions_description_bigm
-  on transactions using gin (description gin_bigm_ops);
+create index if not exists idx_transactions_description_trgm
+  on transactions using gin (description gin_trgm_ops);
 
-create index if not exists idx_transactions_vendor_raw_bigm
-  on transactions using gin (vendor_raw gin_bigm_ops);
+create index if not exists idx_transactions_vendor_raw_trgm
+  on transactions using gin (vendor_raw gin_trgm_ops);
 
-create index if not exists idx_receipts_ocr_text_bigm
-  on receipts using gin (ocr_text gin_bigm_ops);
+create index if not exists idx_receipts_ocr_text_trgm
+  on receipts using gin (ocr_text gin_trgm_ops);
 
-comment on index idx_transactions_description_bigm is 'Phase 3: pg_bigm index for description searches.';
-comment on index idx_transactions_vendor_raw_bigm is 'Phase 3: pg_bigm index for vendor_raw searches.';
+comment on index idx_transactions_description_trgm is 'Phase 3: pg_trgm index for description searches.';
+comment on index idx_transactions_vendor_raw_trgm is 'Phase 3: pg_trgm index for vendor_raw searches.';
 -- ============================================================================
 -- Phase 4: Security & Multi-tenancy (RLS)
 -- ============================================================================

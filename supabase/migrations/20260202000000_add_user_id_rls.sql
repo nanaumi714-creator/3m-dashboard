@@ -24,7 +24,7 @@ add column if not exists user_id uuid not null default auth.uid();
 comment on column import_sources.user_id is 'Owner user id (auth.uid) for row-level security.';
 
 alter table expense_categories
-add column if not exists user_id uuid not null default auth.uid();
+add column if not exists user_id uuid default auth.uid();
 
 comment on column expense_categories.user_id is 'Owner user id (auth.uid) for row-level security.';
 

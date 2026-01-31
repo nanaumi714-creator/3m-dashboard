@@ -3,7 +3,7 @@
 -- ============================================================================
 
 -- Extensions
-create extension if not exists pg_bigm;
+create extension if not exists pg_trgm;
 
 -- export_templates: saved export presets
 create table if not exists export_templates (

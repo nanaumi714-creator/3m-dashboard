@@ -7,14 +7,14 @@ import { signOut } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/", label: "Dashboard" },
-  { href: "/transactions", label: "Transactions" },
-  { href: "/transactions/new", label: "New Entry" },
-  { href: "/imports", label: "CSV Import" },
-  { href: "/triage", label: "Triage Queue" },
-  { href: "/vendors", label: "Vendors" },
-  { href: "/categories", label: "Categories" },
-  { href: "/exports", label: "Export History" }
+  { href: "/", label: "ダッシュボード" },
+  { href: "/transactions", label: "取引一覧" },
+  { href: "/transactions/new", label: "取引登録" },
+  { href: "/imports", label: "CSVインポート" },
+  { href: "/triage", label: "未処理一覧" },
+  { href: "/vendors", label: "取引先" },
+  { href: "/categories", label: "カテゴリ管理" },
+  { href: "/exports", label: "エクスポート履歴" }
 ];
 
 export default function DashboardHeader() {
@@ -72,7 +72,7 @@ export default function DashboardHeader() {
           )}
           disabled={isSigningOut}
         >
-          {isSigningOut ? "Logging out..." : "ログアウト"}
+          {isSigningOut ? "ログアウト中..." : "ログアウト"}
         </button>
       </div>
     </header>
