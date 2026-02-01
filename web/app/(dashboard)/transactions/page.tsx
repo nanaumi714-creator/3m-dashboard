@@ -259,7 +259,10 @@ export default function TransactionsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Loading transactions...</div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <div className="text-gray-400 font-bold tracking-tight">取引データを読み込み中...</div>
+        </div>
       </div>
     );
   }
@@ -267,26 +270,39 @@ export default function TransactionsPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        {/* Title Block */}
+        <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">取引履歴</h1>
-            <p className="text-gray-600">
-              全取引の履歴を確認・検索できます（合計:{" "}
-              <span className="font-semibold text-blue-600">{totalCount}件</span>
-              ）
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-3xl font-black text-gray-900 tracking-tight">取引履歴</h1>
+              <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider">{totalCount} 件</span>
+            </div>
+            <p className="text-gray-500 font-medium tracking-tight">
+              全取引の履歴を確認・検索・出力できます。
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/receipts/upload"
+              className="flex items-center gap-2 bg-white border border-gray-100 text-gray-600 px-5 py-3 rounded-2xl hover:bg-gray-50 hover:text-gray-900 transition-all font-bold text-sm shadow-sm active:scale-[0.98]"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                <polyline points="14 2 14 8 20 8" />
+                <path d="M12 18v-6" />
+                <path d="M9 15h6" />
+              </svg>
+              レシート登録
+            </Link>
             <Link
               href="/transactions/new"
-              className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+              className="flex items-center gap-2 bg-white border border-gray-100 text-gray-600 px-5 py-3 rounded-2xl hover:bg-gray-50 hover:text-gray-900 transition-all font-bold text-sm shadow-sm active:scale-[0.98]"
             >
               手入力
             </Link>
             <Link
               href="/imports"
-              className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+              className="flex items-center gap-2 bg-white border border-gray-100 text-gray-600 px-5 py-3 rounded-2xl hover:bg-gray-50 hover:text-gray-900 transition-all font-bold text-sm shadow-sm active:scale-[0.98]"
             >
               CSVインポート
             </Link>
@@ -297,68 +313,49 @@ export default function TransactionsPage() {
                   const response = await fetch("/api/exports/transactions", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      query,
-                      from,
-                      to,
-                      onlyUntriaged,
-                      minAmount,
-                      maxAmount,
-                      categoryId,
-                      includeOcr,
-                    }),
+                    body: JSON.stringify({ query, from, to, onlyUntriaged, minAmount, maxAmount, categoryId, includeOcr }),
                   });
-                  if (!response.ok) {
-                    const body = await response.json();
-                    throw new Error(body.error || "エクスポートに失敗しました。");
-                  }
-
+                  if (!response.ok) throw new Error("エクスポートに失敗しました。");
                   const blob = await response.blob();
                   const url = window.URL.createObjectURL(blob);
                   const link = document.createElement("a");
                   link.href = url;
-                  link.download = "transactions.csv";
+                  link.download = `transactions_${new Date().toISOString().split('T')[0]}.csv`;
                   document.body.appendChild(link);
                   link.click();
                   link.remove();
                   window.URL.revokeObjectURL(url);
                 } catch (err) {
-                  console.error("Export error", err);
-                  alert(
-                    err instanceof Error
-                      ? err.message
-                      : "エクスポートに失敗しました。"
-                  );
+                  alert(err instanceof Error ? err.message : "エラーが発生しました。");
                 } finally {
                   setExporting(false);
                 }
               }}
               disabled={exporting}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm disabled:opacity-50"
+              className="flex items-center gap-2 bg-gray-100 text-gray-700 px-5 py-3 rounded-2xl hover:bg-gray-200 transition-all font-bold text-sm shadow-sm active:scale-[0.98] disabled:opacity-50"
             >
-              {exporting ? "エクスポート中..." : "CSVエクスポート"}
+              {exporting ? "出力中..." : "CSVエクスポート"}
             </button>
           </div>
         </div>
 
         {/* Filters Panel */}
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 mb-6">
-          <h2 className="text-base font-medium text-gray-900 mb-3">フィルター</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                検索
-              </label>
-              <input
-                value={searchInput}
-                onChange={(e) => {
-                  setSearchInput(e.target.value);
-                  handleSearch(e.target.value);
-                }}
-                placeholder="ベンダーやメモを検索"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-              />
-              <label className="flex items-center gap-2 mt-2 text-xs text-gray-600">
+        <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100 mb-8">
+          <div className="flex items-center gap-4 mb-6 bg-gray-50 rounded-2xl p-1 pr-4 border border-gray-100 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+            <div className="pl-4 text-gray-400">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+            </div>
+            <input
+              value={searchInput}
+              onChange={(e) => {
+                setSearchInput(e.target.value);
+                handleSearch(e.target.value);
+              }}
+              placeholder="店名、内容、OCRテキストを検索..."
+              className="w-full bg-transparent border-none py-3 px-2 focus:ring-0 text-gray-900 font-bold placeholder:text-gray-300 placeholder:font-medium text-sm"
+            />
+            <div className="flex items-center gap-2 shrink-0">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={includeOcr}
@@ -366,277 +363,228 @@ export default function TransactionsPage() {
                     setIncludeOcr(event.target.checked);
                     setPage(1);
                   }}
-                  className="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-blue-600 focus:ring-0 border-gray-200 rounded-md"
                 />
-                OCR本文も検索対象にする
+                <span className="text-[10px] font-bold text-gray-400">OCRを含む</span>
               </label>
             </div>
+          </div>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                期間（開始）
-              </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-gray-400 ml-1">開始日</label>
               <input
                 type="date"
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                className="w-full bg-gray-50 border-none rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700 text-sm"
               />
             </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                期間（終了）
-              </label>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-gray-400 ml-1">終了日</label>
               <input
                 type="date"
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                className="w-full bg-gray-50 border-none rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700 text-sm"
               />
             </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                表示オプション
-              </label>
-              <div className="flex items-center pt-1">
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={onlyUntriaged}
-                    onChange={(e) => {
-                      setOnlyUntriaged(e.target.checked);
-                      setPage(1);
-                    }}
-                    className="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <div className="ml-2">
-                    <span className="text-xs font-medium text-gray-700">
-                      未判定のみ表示
-                    </span>
-                  </div>
-                </label>
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                金額（最小）
-              </label>
-              <input
-                type="number"
-                value={minAmount}
-                onChange={(e) => {
-                  setMinAmount(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="例: -5000"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                金額（最大）
-              </label>
-              <input
-                type="number"
-                value={maxAmount}
-                onChange={(e) => {
-                  setMaxAmount(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="例: 0"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                カテゴリ
-              </label>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-gray-400 ml-1">カテゴリ</label>
               <select
                 value={categoryId}
-                onChange={(e) => {
-                  setCategoryId(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                onChange={(e) => { setCategoryId(e.target.value); setPage(1); }}
+                className="w-full bg-gray-50 border-none rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700 appearance-none cursor-pointer text-sm"
               >
                 <option value="">すべて</option>
                 {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
+                  <option key={category.id} value={category.id}>{category.name}</option>
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                保存検索
-              </label>
-              <select
-                value={selectedSearchId}
-                onChange={(e) => {
-                  const id = e.target.value;
-                  setSelectedSearchId(id);
-                  const selected = savedSearches.find((search) => search.id === id);
-                  if (selected) {
-                    setSearchInput(selected.query || "");
-                    setQuery(selected.query || "");
-                    const filters = (selected.filters || {}) as {
-                      from?: string;
-                      to?: string;
-                      onlyUntriaged?: boolean;
-                      minAmount?: string;
-                      maxAmount?: string;
-                      categoryId?: string;
-                      includeOcr?: boolean;
-                    };
-                    setFrom(filters.from || "");
-                    setTo(filters.to || "");
-                    setOnlyUntriaged(Boolean(filters.onlyUntriaged));
-                    setMinAmount(filters.minAmount || "");
-                    setMaxAmount(filters.maxAmount || "");
-                    setCategoryId(filters.categoryId || "");
-                    setIncludeOcr(filters.includeOcr ?? true);
-                    setPage(1);
-                  }
-                }}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">未選択</option>
-                {savedSearches.map((search) => (
-                  <option key={search.id} value={search.id}>
-                    {search.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowSaveSearch(true);
-                  setSaveSearchName(query ? `${query} 検索` : "");
-                }}
-                className="mt-2 text-xs text-blue-600 hover:underline"
-              >
-                現在の検索条件を保存
-              </button>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-gray-400 ml-1">金額範囲</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={minAmount}
+                  onChange={(e) => { setMinAmount(e.target.value); setPage(1); }}
+                  placeholder="最小"
+                  className="w-full bg-gray-50 border-none rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700 text-sm"
+                />
+                <span className="text-gray-300 font-bold">~</span>
+                <input
+                  type="number"
+                  value={maxAmount}
+                  onChange={(e) => { setMaxAmount(e.target.value); setPage(1); }}
+                  placeholder="最大"
+                  className="w-full bg-gray-50 border-none rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700 text-sm"
+                />
+              </div>
             </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-gray-400 ml-1">保存した条件</label>
+              <div className="flex flex-col gap-2">
+                <select
+                  value={selectedSearchId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setSelectedSearchId(id);
+                    const selected = savedSearches.find((search) => search.id === id);
+                    if (selected) {
+                      setSearchInput(selected.query || "");
+                      setQuery(selected.query || "");
+                      const filters = (selected.filters || {}) as any;
+                      setFrom(filters.from || "");
+                      setTo(filters.to || "");
+                      setOnlyUntriaged(Boolean(filters.onlyUntriaged));
+                      setMinAmount(filters.minAmount || "");
+                      setMaxAmount(filters.maxAmount || "");
+                      setCategoryId(filters.categoryId || "");
+                      setIncludeOcr(filters.includeOcr ?? true);
+                      setPage(1);
+                    }
+                  }}
+                  className="w-full bg-gray-50 border-none rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700 appearance-none cursor-pointer text-sm"
+                >
+                  <option value="">未選択</option>
+                  {savedSearches.map((search) => (
+                    <option key={search.id} value={search.id}>{search.name}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => { setShowSaveSearch(true); setSaveSearchName(query ? `${query} の条件` : ""); }}
+                  className="text-[10px] font-bold text-blue-600 hover:text-blue-700 transition-colors ml-1 uppercase"
+                >
+                  条件を保存
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-6 border-t border-gray-50 flex items-center justify-between">
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className={cn(
+                "w-10 h-6 rounded-full transition-all flex items-center px-1",
+                onlyUntriaged ? "bg-blue-600" : "bg-gray-200"
+              )}>
+                <input
+                  type="checkbox"
+                  checked={onlyUntriaged}
+                  onChange={(e) => { setOnlyUntriaged(e.target.checked); setPage(1); }}
+                  className="hidden"
+                />
+                <div className={cn(
+                  "w-4 h-4 bg-white rounded-full transition-transform",
+                  onlyUntriaged ? "translate-x-4" : "translate-x-0"
+                )} />
+              </div>
+              <span className="text-xs font-bold text-gray-600 group-hover:text-gray-900 transition-colors">未判定のみ表示</span>
+            </label>
           </div>
         </div>
 
-        {/* Transactions Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        {/* Transactions Table Card */}
+        <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-50">
+              <thead className="bg-gray-50/50">
                 <tr>
-                  <th className="px-6 py-3 w-4">
+                  <th className="px-6 py-4 w-4">
                     <input
                       type="checkbox"
-                      checked={
-                        transactions.length > 0 &&
-                        selectedIds.size === transactions.length
-                      }
+                      checked={transactions.length > 0 && selectedIds.size === transactions.length}
                       onChange={toggleAll}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="rounded border-gray-200 text-blue-600 focus:ring-0 w-4 h-4"
                     />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日付</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">内容</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">支払い手段</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">金額</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">判定</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ベンダー</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                  <th className="px-4 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">日付</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">内容 / 概要</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">支払手段</th>
+                  <th className="px-6 py-4 text-right text-[10px] font-bold text-gray-400 uppercase tracking-widest">金額</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">判定 / 状況</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">店名・先</th>
+                  <th className="px-6 py-4"></th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-50">
                 {transactions.map((tx) => {
                   const isExpense = tx.amount_yen < 0;
                   const tbi = tx.transaction_business_info;
-                  const statusLabel = !tbi
-                    ? "未判定"
-                    : !tbi.is_business
-                      ? "生活"
-                      : tbi.business_ratio < 100
-                        ? "按分"
-                        : "事業";
-
-                  const categoryName = tbi?.category_id
-                    ? categories.find(c => c.id === tbi.category_id)?.name
-                    : null;
+                  const statusLabel = !tbi ? "未判定" : !tbi.is_business ? "個人" : tbi.business_ratio < 100 ? "分" : "事業";
+                  const categoryName = tbi?.category_id ? categories.find(c => c.id === tbi.category_id)?.name : null;
 
                   return (
-                    <tr key={tx.id} className={cn("hover:bg-gray-50", selectedIds.has(tx.id) && "bg-blue-50")}>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                    <tr key={tx.id} className={cn("hover:bg-blue-50/30 transition-colors", selectedIds.has(tx.id) && "bg-blue-50/50")}>
+                      <td className="px-6 py-4">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(tx.id)}
                           onChange={() => toggleSelection(tx.id)}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          className="rounded border-gray-200 text-blue-600 focus:ring-0 w-4 h-4"
                         />
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {tx.occurred_on}
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-gray-900 leading-none">{tx.occurred_on.split('-')[1]}/{tx.occurred_on.split('-')[2]}</span>
+                          <span className="text-[10px] text-gray-400 font-medium mt-1 uppercase tracking-wider">{tx.occurred_on.split('-')[0]}</span>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4">
                         <Link
                           href={`/transactions/${tx.id}`}
-                          className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                          className="group flex flex-col max-w-[200px]"
                         >
-                          {tx.description}
+                          <span className="text-sm font-bold text-gray-800 group-hover:text-blue-600 transition-colors truncate mb-0.5">{tx.description}</span>
+                          <span className="text-[9px] text-gray-300 font-medium tracking-tight">#{tx.id.slice(0, 8)}</span>
                         </Link>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {tx.payment_methods?.name || "Unknown"}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-xs font-bold text-gray-600">{tx.payment_methods?.name || "-"}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className={cn(
-                          "text-sm font-mono font-semibold",
-                          isExpense ? "text-red-600" : "text-green-600"
+                          "text-sm font-bold",
+                          isExpense ? "text-gray-900" : "text-emerald-500"
                         )}>
-                          {isExpense ? "" : "+"}¥{Math.abs(tx.amount_yen).toLocaleString()}
+                          {isExpense ? "-" : "+"}¥{Math.abs(tx.amount_yen).toLocaleString()}
                         </div>
-                        {tbi && tbi.is_business && tbi.business_ratio > 0 && tbi.business_ratio < 100 && (
-                          <div className="text-[10px] text-gray-500 mt-0.5 space-x-1">
-                            <span>事: ¥{Math.abs(Math.floor(tx.amount_yen * (tbi.business_ratio / 100))).toLocaleString()}</span>
-                            <span>生: ¥{Math.abs(tx.amount_yen - Math.floor(tx.amount_yen * (tbi.business_ratio / 100))).toLocaleString()}</span>
+                        {tbi?.is_business && tbi.business_ratio > 0 && tbi.business_ratio < 100 && (
+                          <div className="text-[8px] text-blue-500 font-bold mt-0.5 tracking-tighter">
+                            事業分: ¥{Math.abs(Math.floor(tx.amount_yen * (tbi.business_ratio / 100))).toLocaleString()}
                           </div>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex flex-col gap-0.5">
+                        <div className="flex flex-col gap-1">
                           <span className={cn(
-                            "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
-                            !tbi
-                              ? "bg-gray-100 text-gray-800"
-                              : !tbi.is_business
-                                ? "bg-purple-100 text-purple-800"
-                                : tbi.business_ratio < 100
-                                  ? "bg-blue-100 text-blue-800"
-                                  : "bg-green-100 text-green-800"
+                            "inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold leading-none w-fit",
+                            !tbi ? "bg-gray-100 text-gray-400" :
+                              !tbi.is_business ? "bg-amber-50 text-amber-600" :
+                                tbi.business_ratio < 100 ? "bg-blue-50 text-blue-600" :
+                                  "bg-emerald-50 text-emerald-600"
                           )}>
                             {statusLabel}
                             {tbi?.is_business && tbi.business_ratio < 100 && ` (${tbi.business_ratio}%)`}
                           </span>
                           {categoryName && (
-                            <span className="text-[10px] text-gray-400 truncate max-w-[100px]" title={categoryName}>
+                            <span className="text-[9px] text-gray-400 font-medium truncate max-w-[80px]">
                               {categoryName}
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-gray-500">
                         {tx.vendor_raw || '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
                         <button
                           onClick={() => handleDelete(tx.id, tx.description)}
-                          className="text-gray-400 hover:text-red-600 transition-colors"
-                          title="削除"
+                          className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2m-6 11v-6m4 6v-6" />
                           </svg>
                         </button>
                       </td>
@@ -648,141 +596,132 @@ export default function TransactionsPage() {
           </div>
 
           {transactions.length === 0 && (
-            <div className="text-center py-12">
-              <div className="text-gray-400 text-lg mb-2">📊</div>
-              <p className="text-gray-500">条件に一致する取引が見つかりません</p>
-              <p className="text-sm text-gray-400">フィルター条件を変更してください</p>
+            <div className="py-20 flex flex-col items-center justify-center">
+              <p className="text-gray-400 font-bold">データが見つかりません</p>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {pageCount > 1 && (
+            <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
+              <div className="text-[10px] font-bold text-gray-400">{page} / {pageCount} ページ</div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage(page - 1)}
+                  className="p-2 rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-gray-900 disabled:opacity-30 transition-all shadow-sm"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                </button>
+                <button
+                  disabled={page === pageCount}
+                  onClick={() => setPage(page + 1)}
+                  className="p-2 rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-gray-900 disabled:opacity-30 transition-all shadow-sm"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+                </button>
+              </div>
             </div>
           )}
         </div>
-
-        {/* Pagination (lines omitted for brevity) */}
-        {/* ... */}
       </div>
 
       {/* Batch Action Bar */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white rounded-full shadow-lg border border-gray-200 px-6 py-3 flex items-center gap-4 animate-in slide-in-from-bottom-4 fade-in z-50">
-          <div className="text-sm font-semibold text-gray-900 border-r border-gray-200 pr-4">
-            {selectedIds.size} 件選択中
+        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 rounded-3xl shadow-2xl px-8 py-4 flex items-center gap-6 animate-in slide-in-from-bottom-4 duration-300 z-50">
+          <div className="flex flex-col leading-none border-r border-white/10 pr-6">
+            <span className="text-[9px] font-bold text-blue-400 uppercase mb-1">選択中</span>
+            <span className="text-base font-bold text-white">{selectedIds.size} 件</span>
           </div>
 
-          <button
-            onClick={() => handleBatchUpdate({ is_business: false })}
-            disabled={isUpdatingBatch}
-            className="text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-3 py-1.5 rounded-md transition-colors"
-          >
-            生活 (0%)
-          </button>
-
-          <div className="h-4 w-px bg-gray-200" />
-
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">事業:</span>
-            {categories.slice(0, 3).map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => handleBatchUpdate({ is_business: true, category_id: cat.id })}
-                disabled={isUpdatingBatch}
-                className="text-sm font-medium text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-md transition-colors"
-              >
-                {cat.name}
-              </button>
-            ))}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => handleBatchUpdate({ is_business: false })}
+              className="px-4 py-2 rounded-xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-all"
+            >
+              生活費に設定
+            </button>
+            <div className="flex items-center gap-1.5">
+              {categories.slice(0, 2).map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => handleBatchUpdate({ is_business: true, category_id: cat.id })}
+                  className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-all"
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="h-4 w-px bg-gray-200" />
+          <div className="h-8 w-px bg-white/10" />
 
           <button
             onClick={handleBatchDelete}
-            disabled={isUpdatingBatch}
-            className="text-sm font-medium text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-md transition-colors"
+            className="p-2.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all"
           >
-            削除
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
           </button>
-
-          <div className="h-4 w-px bg-gray-200" />
 
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="text-gray-400 hover:text-gray-600"
+            className="p-2.5 text-white/50 hover:text-white transition-all"
           >
-            ✕
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
           </button>
         </div>
       )}
 
+      {/* Save Search Modal */}
       {showSaveSearch && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
-            {/* Saved Search Modal Content (Same as before) */}
-            <h2 className="text-xl font-semibold mb-4 text-gray-900">検索条件を保存</h2>
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-[32px] p-8 w-full max-w-sm shadow-2xl">
+            <h2 className="text-xl font-black mb-1 text-gray-900 tracking-tight">検索条件を保存</h2>
+            <p className="text-gray-400 text-xs font-medium mb-6">現在のフィルター設定をプリセットとして保存します。</p>
             <form
               onSubmit={async (event) => {
                 event.preventDefault();
-                if (!saveSearchName.trim()) {
-                  alert("検索名を入力してください。");
-                  return;
-                }
+                if (!saveSearchName.trim()) return;
                 setSavingSearch(true);
                 try {
-                  const filters = {
-                    from,
-                    to,
-                    onlyUntriaged,
-                    minAmount,
-                    maxAmount,
-                    categoryId,
-                    includeOcr,
-                  };
-                  const { data, error } = await supabase
-                    .from("saved_searches")
-                    .insert({
-                      name: saveSearchName.trim(),
-                      query: query || null,
-                      filters,
-                    })
-                    .select("*")
-                    .single();
+                  const filters = { from, to, onlyUntriaged, minAmount, maxAmount, categoryId, includeOcr };
+                  const { data, error } = await supabase.from("saved_searches").insert({
+                    name: saveSearchName.trim(),
+                    query: query || null,
+                    filters,
+                  }).select("*").single();
                   if (error) throw error;
                   if (data) {
                     setSavedSearches((prev) => [data, ...prev]);
                     setSelectedSearchId(data.id);
                   }
                   setShowSaveSearch(false);
-                } catch (err) {
-                  console.error("Failed to save search", err);
-                  alert("保存に失敗しました。");
-                } finally {
-                  setSavingSearch(false);
-                }
+                } catch (err) { alert("保存に失敗しました。"); } finally { setSavingSearch(false); }
               }}
               className="space-y-4"
             >
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">保存名</label>
-                <input
-                  type="text"
-                  value={saveSearchName}
-                  onChange={(e) => setSaveSearchName(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="例: 交通費 2025年"
-                />
-              </div>
-              <div className="flex justify-end space-x-3">
+              <input
+                type="text"
+                autoFocus
+                value={saveSearchName}
+                onChange={(e) => setSaveSearchName(e.target.value)}
+                className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-900"
+                placeholder="名称を入力（例: 交通費）"
+              />
+              <div className="flex gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowSaveSearch(false)}
-                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 py-4 text-gray-400 font-bold"
                 >
                   キャンセル
                 </button>
                 <button
                   type="submit"
                   disabled={savingSearch}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
+                  className="flex-2 py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-100 flex-[2]"
                 >
-                  {savingSearch ? "保存中..." : "保存"}
+                  保存
                 </button>
               </div>
             </form>

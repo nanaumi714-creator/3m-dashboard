@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 
 const REQUIRED_HEADERS = {
@@ -108,6 +108,7 @@ function toRowMap(headers: string[], values: string[]): CsvRow {
 }
 
 export default function CsvImportPage() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
   const [fileName, setFileName] = useState("");
@@ -140,6 +141,14 @@ export default function CsvImportPage() {
     }
 
     loadPaymentMethods();
+  }, []);
+
+  // Auto-trigger file input on mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 500);
+    return () => clearTimeout(timer);
   }, []);
 
   const hasHeaders = headers.length > 0;
@@ -357,142 +366,130 @@ export default function CsvImportPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">CSVインポート</h1>
-          <p className="text-gray-600">
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">CSVインポート</h1>
+          <p className="text-gray-500 font-medium">
             CSVのフォーマットを確認しながら、安全に取り込みます。
           </p>
         </div>
 
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-6 space-y-6">
+        <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mb-6 space-y-8">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">CSVファイル</h2>
+            <h2 className="text-lg font-black text-gray-900 mb-4">CSVファイルを選択</h2>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-gray-200 rounded-3xl p-10 text-center hover:border-blue-400 hover:bg-blue-50/30 transition-all cursor-pointer group"
+            >
+              <svg className="mx-auto h-12 w-12 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <p className="mt-4 text-sm font-bold text-gray-600">クリックしてファイルを選択</p>
+              <p className="text-xs text-gray-400 mt-1">.csv 形式のファイルに対応しています</p>
+            </div>
             <input
+              ref={fileInputRef}
               type="file"
               accept="text/csv"
               onChange={handleFileChange}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="hidden"
             />
             {fileName && (
-              <p className="text-sm text-gray-500 mt-2">選択中: {fileName}</p>
+              <div className="mt-4 flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-xl text-sm font-bold w-fit">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+                選択中: {fileName}
+              </div>
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                日付列
-              </label>
+              <label className="block text-sm font-black text-gray-700 mb-2 ml-1">日付列</label>
               <select
                 value={dateColumn}
                 onChange={(event) => setDateColumn(event.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700 appearance-none cursor-pointer"
               >
                 <option value="">選択してください</option>
                 {headers.map((header) => (
-                  <option key={header} value={header}>
-                    {header}
-                  </option>
+                  <option key={header} value={header}>{header}</option>
                 ))}
               </select>
-              <p className="text-xs text-gray-500 mt-1">
-                推奨: {REQUIRED_HEADERS.date}
-              </p>
+              <p className="text-[10px] font-bold text-blue-500 mt-2 ml-1 uppercase tracking-wider">推奨: {REQUIRED_HEADERS.date}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                金額列
-              </label>
+              <label className="block text-sm font-black text-gray-700 mb-2 ml-1">金額列</label>
               <select
                 value={amountColumn}
                 onChange={(event) => setAmountColumn(event.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700 appearance-none cursor-pointer"
               >
                 <option value="">選択してください</option>
                 {headers.map((header) => (
-                  <option key={header} value={header}>
-                    {header}
-                  </option>
+                  <option key={header} value={header}>{header}</option>
                 ))}
               </select>
-              <p className="text-xs text-gray-500 mt-1">
-                推奨: {REQUIRED_HEADERS.amount}
-              </p>
+              <p className="text-[10px] font-bold text-blue-500 mt-2 ml-1 uppercase tracking-wider">推奨: {REQUIRED_HEADERS.amount}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                摘要/利用店舗列
-              </label>
+              <label className="block text-sm font-black text-gray-700 mb-2 ml-1">摘要/店舗列</label>
               <select
                 value={descriptionColumn}
                 onChange={(event) => setDescriptionColumn(event.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700 appearance-none cursor-pointer"
               >
                 <option value="">選択してください</option>
                 {headers.map((header) => (
-                  <option key={header} value={header}>
-                    {header}
-                  </option>
+                  <option key={header} value={header}>{header}</option>
                 ))}
               </select>
-              <p className="text-xs text-gray-500 mt-1">
-                推奨: {REQUIRED_HEADERS.description}
-              </p>
+              <p className="text-[10px] font-bold text-blue-500 mt-2 ml-1 uppercase tracking-wider">推奨: {REQUIRED_HEADERS.description}</p>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              支払い手段
-            </label>
+            <label className="block text-sm font-black text-gray-700 mb-2 ml-1">一括設定する支払い手段</label>
             <select
               value={selectedPaymentMethod}
               onChange={(event) => setSelectedPaymentMethod(event.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700 appearance-none cursor-pointer"
             >
               <option value="">選択してください</option>
               {paymentMethods.map((method) => (
-                <option key={method.id} value={method.id}>
-                  {method.name}
-                </option>
+                <option key={method.id} value={method.id}>{method.name}</option>
               ))}
             </select>
-            <p className="text-xs text-gray-500 mt-1">
-              取り込みした取引に一括で設定されます。
-            </p>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">プレビュー</h2>
+        <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mb-6">
+          <h2 className="text-lg font-black text-gray-900 mb-4">プレビュー</h2>
           {rows.length === 0 ? (
-            <p className="text-gray-500 text-sm">CSVを選択するとプレビューが表示されます。</p>
+            <div className="py-10 text-center">
+              <p className="text-gray-400 font-medium">CSVを選ぶとここにデータが表示されます</p>
+            </div>
           ) : (
-            <div className="space-y-4">
-              <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                <span>行数: {validationSummary.totalRows}件</span>
-                <span>エラー: {validationSummary.errorCount}件</span>
-                {validationSummary.missingHeaders.length > 0 && (
-                  <span className="text-amber-600">
-                    標準ヘッダ不足: {validationSummary.missingHeaders.join(", ")}
-                  </span>
-                )}
+            <div className="space-y-6">
+              <div className="flex flex-wrap gap-6 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500"></div>Total: {validationSummary.totalRows}</span>
+                <span className="flex items-center gap-2"><div className={cn("w-2 h-2 rounded-full", validationSummary.errorCount > 0 ? "bg-red-500" : "bg-green-500")}></div>Errors: {validationSummary.errorCount}</span>
               </div>
-              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <div className="overflow-x-auto border border-gray-100 rounded-2xl shadow-inner bg-gray-50/30">
                 <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-600">
+                  <thead className="bg-gray-50/50 text-gray-500 text-[10px] font-black uppercase tracking-wider">
                     <tr>
                       {headers.map((header) => (
-                        <th key={header} className="px-3 py-2 text-left font-medium">
+                        <th key={header} className="px-5 py-4 text-left border-b border-gray-100">
                           {header}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-gray-100">
                     {rows.slice(0, 5).map((row, index) => (
-                      <tr key={index} className="border-t">
+                      <tr key={index} className="hover:bg-gray-50/50 transition-colors">
                         {headers.map((header) => (
-                          <td key={header} className="px-3 py-2 text-gray-700">
+                          <td key={header} className="px-5 py-4 text-gray-600 font-medium">
                             {row[header]}
                           </td>
                         ))}
@@ -502,14 +499,15 @@ export default function CsvImportPage() {
                 </table>
               </div>
               {validationErrors.length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <p className="text-sm font-medium text-red-700 mb-2">
-                    フォーマットエラー（先頭5件）
+                <div className="bg-red-50 border border-red-100 rounded-2xl p-6">
+                  <p className="text-sm font-black text-red-700 mb-3">
+                    フォーマットエラーが見つかりました（先頭5件）
                   </p>
-                  <ul className="text-sm text-red-600 space-y-1">
+                  <ul className="text-sm text-red-600 space-y-2 font-medium">
                     {validationErrors.slice(0, 5).map((error) => (
-                      <li key={error.rowNumber}>
-                        {error.rowNumber}行目: {error.issues.join(" / ")}
+                      <li key={error.rowNumber} className="flex items-center gap-2">
+                        <span className="bg-red-200 text-red-800 text-[10px] px-2 py-0.5 rounded-full font-black">{error.rowNumber}行目</span>
+                        {error.issues.join(" / ")}
                       </li>
                     ))}
                   </ul>
@@ -519,25 +517,30 @@ export default function CsvImportPage() {
           )}
         </div>
 
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-1">取り込み</h2>
-              <p className="text-sm text-gray-600">
-                金額はJPY、支出は自動でマイナスに変換されます。
+              <h2 className="text-lg font-black text-gray-900 mb-1">インポートを実行</h2>
+              <p className="text-sm text-gray-400 font-medium tracking-tight">
+                重複チェック（チェックサム）を行い、安全に登録されます。
               </p>
             </div>
             <button
               type="button"
               onClick={handleImport}
               disabled={importing || rows.length === 0}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full md:w-auto bg-blue-600 text-white px-12 py-5 rounded-2xl hover:bg-blue-700 transition-all font-black text-lg shadow-xl shadow-blue-100 disabled:opacity-50 active:scale-[0.98]"
             >
-              {importing ? "取り込み中..." : "取り込み開始"}
+              {importing ? "取り込み中..." : "取り込みを開始する"}
             </button>
           </div>
           {statusMessage && (
-            <p className="mt-4 text-sm text-gray-700">{statusMessage}</p>
+            <div className={cn(
+              "mt-8 p-5 rounded-2xl text-sm font-bold animate-in slide-in-from-top-2 duration-200",
+              statusMessage.includes('完了') ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-blue-50 text-blue-700 border border-blue-100'
+            )}>
+              {statusMessage}
+            </div>
           )}
         </div>
       </div>

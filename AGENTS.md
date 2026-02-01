@@ -146,10 +146,13 @@ Before considering a task complete:
 
 **Frontend**:
 - **NEW**: Use consistent design patterns (see Design System below)
+- **NEW**: Follow "Premium & Aesthetic" design: Use Blue as primary/accent, avoid plain Black/Gray for active states.
+- **NEW**: Follow single-row header layout with whitespace-nowrap for navigation.
+- **NEW**: Use glassmorphism (`backdrop-blur-md`, `bg-white/80`) for headers and modals.
 - Use Tailwind utility classes only
 - No `any` types, handle async errors
-- **NEW**: Follow card-based layout for data display
-- **NEW**: Use proper loading states and error handling
+- **NEW**: Follow card-based layout (rounded-2xl+) for data display.
+- **NEW**: Use proper loading states (spinners, skeletons) and error handling.
 
 **Importer**:
 - Verify idempotency (same CSV = safe)
@@ -163,27 +166,35 @@ Before considering a task complete:
 
 ---
 
-## Design System (Phase 2)
+## Design System (Phase 3 Premium)
+
+**Color Palette**:
+- **Primary Theme**: Blue (`blue-600`). Avoid using plain Black (`gray-900`) for headers, buttons, or active states.
+- **Background**: `bg-gray-50` for pages, `bg-white` or `bg-white/80` for components.
+- **Surface**: Use Glassmorphism (`bg-white/80 backdrop-blur-md`) for headers and floating modals.
+
+**Expense Classification Colors**:
+- **事業 (Business)**: `blue-600` (Text/BG) - Represents active business economy.
+- **按分 (Allocation)**: `blue-100` background with `blue-800` text.
+- **生活 (Personal)**: `purple-100` background with `purple-800` text. Soft color to distinguish from business.
+- **未判定 (Pending)**: `gray-100` background with `gray-800` text. Neutral.
 
 **Layout Patterns**:
-- Page container: `min-h-screen bg-gray-50`
-- Content wrapper: `max-w-6xl mx-auto px-4 py-8`
-- Card: `bg-white rounded-xl p-6 shadow-sm border border-gray-200`
+- **Page Container**: `min-h-screen bg-gray-50`
+- **Content Wrapper**: `max-w-6xl mx-auto px-4 py-8`
+- **Premium Card**: `bg-white rounded-2xl p-6 shadow-sm border border-gray-100`
+- **Navigation**: Desktop header must be single-row. Use `whitespace-nowrap` for all nav items to prevent ugly wrapping.
 
 **Form Elements**:
-- Input: `w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`
-- Button (primary): `bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm`
-- Toggle switch: Custom component with blue/gray states
-
-**Status Indicators**:
-- Active: `bg-green-100 text-green-800`
-- Inactive: `bg-red-100 text-red-800`
-- Pending: `bg-gray-100 text-gray-800`
+- **Input**: `w-full border-none bg-gray-50 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none font-medium`
+- **Button (Primary)**: `bg-blue-600 text-white px-8 py-3.5 rounded-2xl hover:bg-blue-700 transition-all font-bold shadow-lg shadow-blue-100 active:scale-[0.98]`
+- **Button (Secondary)**: `bg-white text-gray-700 border border-gray-100 px-6 py-3.5 rounded-2xl hover:bg-gray-50 transition-all font-bold`
 
 **Typography**:
-- Page title: `text-3xl font-bold text-gray-900 mb-2`
-- Section title: `text-lg font-semibold text-gray-900 mb-4`
-- Body text: `text-gray-600`
+- **Page Title**: `text-3xl font-black text-gray-900 tracking-tight`
+- **Section Title**: `text-xl font-bold text-gray-900 tracking-tight`
+- **Nav Label**: `text-sm font-bold tracking-wide`
+- **Body Text**: `text-gray-600 font-medium`
 
 ---
 

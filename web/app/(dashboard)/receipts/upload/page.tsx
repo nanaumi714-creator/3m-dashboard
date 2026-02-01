@@ -72,7 +72,8 @@ export default function ReceiptUploadPage() {
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [businessRatio, setBusinessRatio] = useState("100");
-  const [isBusiness, setIsBusiness] = useState<"business" | "personal" | "pending">("business");
+  const [isBusiness, setIsBusiness] = useState<"business" | "personal" | "pending">("pending");
+
 
   // -- State: Suggestion / Meta
   const [matchedVendorName, setMatchedVendorName] = useState<string | null>(null);
@@ -93,6 +94,15 @@ export default function ReceiptUploadPage() {
       setCategories((cats || []) as ExpenseCategory[]);
     }
     loadOptions();
+  }, []);
+
+  // -- Effects: Auto-trigger file input on mount
+  useEffect(() => {
+    // Small delay to ensure the browser is ready for the click
+    const timer = setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 500);
+    return () => clearTimeout(timer);
   }, []);
 
   // -- Effects: Cleanup Preview URL
