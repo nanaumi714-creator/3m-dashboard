@@ -42,7 +42,7 @@ export default function DashboardHeader() {
         {/* Logo Section */}
         <Link href="/" className="flex flex-col shrink-0">
           <h1 className="text-xl font-black text-gray-900 leading-none tracking-tighter">3M</h1>
-          <p className="text-[8px] text-blue-600 font-black tracking-widest uppercase mt-1">Finance Hub</p>
+          <p className="text-[8px] text-blue-600 font-black tracking-widest uppercase mt-1">My Money Management</p>
         </Link>
 
         {/* Desktop Navigation */}
