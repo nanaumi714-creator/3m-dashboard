@@ -1,15 +1,12 @@
 "use client";
 
-import { useRef, useState, useEffect, useMemo } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { supabase } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
 
 type AnalyzeResponse = {
-  ocr: {
-    text: string | null;
-    confidence: number | null;
-  };
+  ocr: { text: string | null; confidence: number | null; };
   extraction: {
     occurredOn: string | null;
     amountYen: number | null;
@@ -21,50 +18,20 @@ type AnalyzeResponse = {
   };
 };
 
-type PaymentMethod = {
-  id: string;
-  name: string;
-};
-
-type ExpenseCategory = {
-  id: string;
-  name: string;
-};
-
-type VendorSuggestion = {
-  vendorId: string | null;
-  matchedVendorName: string | null;
-  categoryId: string | null;
-  businessRatio: number | null;
-  isBusiness: boolean | null;
-};
-
-// --- Components ---
-
-function Spinner() {
-  return (
-    <svg className="animate-spin h-5 w-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-    </svg>
-  );
-}
+type PaymentMethod = { id: string; name: string; };
+type ExpenseCategory = { id: string; name: string; };
 
 export default function ReceiptUploadPage() {
   const router = useRouter();
-
-  // -- State: Step Control
   const [step, setStep] = useState<"upload" | "review">("upload");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // -- State: Data
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [ocrText, setOcrText] = useState("");
 
-  // -- State: Form
   const [occurredOn, setOccurredOn] = useState("");
   const [amountYen, setAmountYen] = useState("");
   const [vendorName, setVendorName] = useState("");
@@ -73,17 +40,12 @@ export default function ReceiptUploadPage() {
   const [categoryId, setCategoryId] = useState("");
   const [businessRatio, setBusinessRatio] = useState("100");
   const [isBusiness, setIsBusiness] = useState<"business" | "personal" | "pending">("pending");
+  const [showOcrText, setShowOcrText] = useState(false);
 
-
-  // -- State: Suggestion / Meta
-  const [matchedVendorName, setMatchedVendorName] = useState<string | null>(null);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
-
-  // -- Refs
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // -- Effects: Load Options
   useEffect(() => {
     async function loadOptions() {
       const [{ data: methods }, { data: cats }] = await Promise.all([
@@ -96,399 +58,218 @@ export default function ReceiptUploadPage() {
     loadOptions();
   }, []);
 
-  // -- Effects: Auto-trigger file input on mount
   useEffect(() => {
-    // Small delay to ensure the browser is ready for the click
-    const timer = setTimeout(() => {
-      fileInputRef.current?.click();
-    }, 500);
+    const timer = setTimeout(() => { if (step === 'upload') fileInputRef.current?.click(); }, 500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [step]);
 
-  // -- Effects: Cleanup Preview URL
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
-
-  // -- Handlers: Upload Step
-  function handleSelectClick() {
-    fileInputRef.current?.click();
-  }
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    // Reset state for new file
     setSelectedFile(file);
     setPreviewUrl(URL.createObjectURL(file));
     setErrorMessage(null);
     setIsAnalyzing(true);
-    setStep("upload"); // Stay on upload visual until analyzed, or switch immediately? 
-    // Let's show analyze loading state effectively
 
     try {
       const formData = new FormData();
       formData.append("file", file);
-
-      const response = await fetch("/api/receipts/analyze", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error("解析に失敗しました。");
-      }
-
+      const response = await fetch("/api/receipts/analyze", { method: "POST", body: formData });
+      if (!response.ok) throw new Error("解析に失敗しました。");
       const data = (await response.json()) as AnalyzeResponse;
       const ext = data.extraction;
 
-      // Populate Form from LLM extraction
       setOcrText(data.ocr.text || "");
       if (ext.occurredOn) setOccurredOn(ext.occurredOn);
       if (ext.amountYen) setAmountYen(String(ext.amountYen));
-      if (ext.vendorName) {
-        setVendorName(ext.vendorName);
-        // Trigger lookup if possible
-        handleVendorLookup(ext.vendorName);
-      }
-      // Use LLM description or fallback to vendor name
-      if (ext.description) {
-        setDescription(ext.description);
-      } else if (ext.vendorName) {
-        setDescription(ext.vendorName);
-      }
-
-      // Auto-match category from hint (partial match)
-      if (ext.categoryHint && categories.length > 0) {
-        const hint = ext.categoryHint.toLowerCase();
-        const matched = categories.find(c =>
-          c.name.toLowerCase().includes(hint) || hint.includes(c.name.toLowerCase())
-        );
-        if (matched) setCategoryId(matched.id);
-      }
-
-      // Auto-match payment method from hint (partial match)
-      if (ext.paymentMethodHint && paymentMethods.length > 0) {
-        const hint = ext.paymentMethodHint.toLowerCase();
-        const matched = paymentMethods.find(m =>
-          m.name.toLowerCase().includes(hint) || hint.includes(m.name.toLowerCase())
-        );
-        if (matched) setPaymentMethodId(matched.id);
-      }
+      if (ext.vendorName) setVendorName(ext.vendorName);
+      if (ext.description || ext.vendorName) setDescription(ext.description || ext.vendorName || "");
 
       setStep("review");
     } catch (error) {
-      console.error(error);
       setErrorMessage("画像の解析に失敗しました。もう一度お試しください。");
-      setSelectedFile(null); // Reset to allow retry
     } finally {
       setIsAnalyzing(false);
-      // Clear input so same file can be selected again if needed
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
-
-  // Reuse logic from review page
-  async function handleVendorLookup(name: string) {
-    if (!name.trim()) return;
-    try {
-      const response = await fetch("/api/vendors/lookup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vendorName: name }),
-      });
-      if (response.ok) {
-        const payload = await response.json();
-        const suggestion = payload.suggestion as VendorSuggestion;
-
-        setMatchedVendorName(suggestion.matchedVendorName || null);
-        if (suggestion.categoryId) setCategoryId(suggestion.categoryId);
-        if (typeof suggestion.businessRatio === "number") setBusinessRatio(String(suggestion.businessRatio));
-        if (typeof suggestion.isBusiness === "boolean") {
-          setIsBusiness(suggestion.isBusiness ? "business" : "personal");
-        }
-      }
-    } catch (e) { console.error(e); }
-  }
-
-  // -- Handlers: Review Step
 
   async function handleSave() {
-    setErrorMessage(null);
-    if (!selectedFile) return;
-
-    // Validation
-    const amountVal = Number(amountYen);
-    if (!occurredOn || !amountYen || !Number.isFinite(amountVal) || !paymentMethodId || !vendorName.trim()) {
-      setErrorMessage("必須項目（取引日、金額、ベンダー、支払い手段）を入力してください。");
+    if (!selectedFile || !occurredOn || !amountYen || !paymentMethodId || !vendorName.trim()) {
+      setErrorMessage("必須項目を入力してください。");
       return;
     }
-
     setIsSaving(true);
     try {
-      const transactionData = {
-        occurredOn,
-        amountYen: amountVal,
-        vendorName,
-        description,
-        paymentMethodId,
-        categoryId: categoryId || null,
-        businessRatio: Number(businessRatio),
-        isBusiness: isBusiness === "pending" ? null : isBusiness === "business",
-      };
-
+      const transactionData = { occurredOn, amountYen: Number(amountYen), vendorName, description, paymentMethodId, categoryId: categoryId || null, businessRatio: Number(businessRatio), isBusiness: isBusiness === "pending" ? null : isBusiness === "business" };
       const formData = new FormData();
       formData.append("file", selectedFile);
       formData.append("ocrText", ocrText);
       formData.append("transactionData", JSON.stringify(transactionData));
-
-      const response = await fetch("/api/receipts/process", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "保存に失敗しました。");
-      }
-
+      const response = await fetch("/api/receipts/process", { method: "POST", body: formData });
+      if (!response.ok) throw new Error("保存に失敗しました。");
       const payload = await response.json();
       router.push(`/receipts/complete/${payload.transactionId}`);
-    } catch (error) {
-      console.error(error);
-      setErrorMessage(error instanceof Error ? error.message : "保存に失敗しました。");
+    } catch (error: any) {
+      setErrorMessage(error.message);
       setIsSaving(false);
     }
   }
 
-  // -- Render Steps --
-
   if (step === "upload") {
+    // Non-scrolling initial screen for mobile
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200 max-w-xl w-full text-center space-y-6">
-          <h1 className="text-2xl font-bold text-gray-900">レシートをアップロード</h1>
-          <p className="text-gray-600">
-            画像を解析し、内容を確認してからデータベースに保存します。<br />
-            画像はプレビューのみで、保存するまでサーバーに残りません。
-          </p>
-
-          <div className="py-8">
-            <button
-              type="button"
-              onClick={handleSelectClick}
-              disabled={isAnalyzing}
-              className="w-full bg-blue-600 text-white px-6 py-4 rounded-xl text-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-            >
-              {isAnalyzing ? (
-                <>
-                  <Spinner />
-                  <span>解析中...</span>
-                </>
-              ) : (
-                "画像を選択 / カメラを起動"
-              )}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,application/pdf"
-              onChange={handleFileChange}
-              className="hidden"
-            />
+      <div className="flex flex-col items-center justify-center p-6 h-[70dvh] md:h-auto overflow-hidden">
+        <div className="w-full max-w-sm text-center">
+          <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-[32px] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-blue-50">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /></svg>
           </div>
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">レシートを登録</h1>
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-12">Quick Upload</p>
 
-          {errorMessage && (
-            <div className="text-red-600 bg-red-50 p-3 rounded-lg text-sm">{errorMessage}</div>
-          )}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isAnalyzing}
+            className="w-full bg-gray-900 text-white p-6 rounded-[32px] font-black text-sm active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-4"
+          >
+            {isAnalyzing ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>}
+            {isAnalyzing ? "解析中..." : "画像を選択して開始"}
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*,application/pdf" onChange={handleFileChange} className="hidden" />
+          {errorMessage && <p className="mt-6 text-[10px] font-black text-red-500 uppercase">{errorMessage}</p>}
         </div>
       </div>
     );
   }
 
-  // Step: Review
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <h1 className="text-2xl font-bold text-gray-900">内容の確認と編集</h1>
-          <button
-            onClick={() => {
-              if (confirm("保存せずに戻りますか？内容は破棄されます。")) {
-                setStep("upload");
-                setSelectedFile(null);
-                setPreviewUrl(null);
-              }
-            }}
-            className="text-gray-600 hover:text-gray-900 text-sm"
-          >
-            キャンセルして戻る
-          </button>
+    <div className="max-w-4xl mx-auto pb-24 px-1 md:px-4 overflow-x-hidden">
+      <div className="mb-8 px-2">
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">解析結果の確認</h1>
+          <span className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest">Completed</span>
         </div>
+      </div>
 
-        {errorMessage && (
-          <div className="bg-red-50 text-red-700 p-4 rounded-lg border border-red-200 sticky top-4 z-10 shadow-sm">
-            {errorMessage}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          {/* Left Column: Form */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6 order-2 lg:order-1">
-            <h2 className="text-lg font-semibold text-gray-900 border-b pb-2">取引詳細</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-6">
+          <div className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm space-y-6">
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block border-b border-gray-50 pb-4">Transaction Details</span>
+            <div className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">取引日 <span className="text-red-500">*</span></label>
-                <input
-                  type="date"
-                  value={occurredOn}
-                  onChange={(e) => setOccurredOn(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                />
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-2">取引日</label>
+                <input type="date" value={occurredOn} onChange={(e) => setOccurredOn(e.target.value)} className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 font-bold text-gray-900" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">金額 (円) <span className="text-red-500">*</span></label>
-                <input
-                  type="number"
-                  value={amountYen}
-                  onChange={(e) => setAmountYen(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                />
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-2">金額 (JPY)</label>
+                <input type="number" value={amountYen} onChange={(e) => setAmountYen(e.target.value)} className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 font-black text-gray-900 text-xl" />
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">ベンダー名 <span className="text-red-500">*</span></label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={vendorName}
-                  onChange={(e) => {
-                    setVendorName(e.target.value);
-                    if (!description) setDescription(e.target.value);
-                  }}
-                  onBlur={() => handleVendorLookup(vendorName)}
-                  className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="店名など"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleVendorLookup(vendorName)}
-                  className="bg-gray-100 text-gray-700 px-3 rounded-lg hover:bg-gray-200 text-sm whitespace-nowrap"
-                >
-                  候補検索
-                </button>
-              </div>
-              {matchedVendorName && <p className="text-xs text-green-600 mt-1">✓ 登録済み: {matchedVendorName}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">内容</label>
-              <input
-                type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">支払い手段 <span className="text-red-500">*</span></label>
-                <select
-                  value={paymentMethodId}
-                  onChange={(e) => setPaymentMethodId(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                >
-                  <option value="">選択してください</option>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-2">支払先</label>
+                <input type="text" value={vendorName} onChange={(e) => setVendorName(e.target.value)} className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 font-bold text-gray-900" />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-2">内容・概要</label>
+                <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 font-bold text-gray-900" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <select value={paymentMethodId} onChange={(e) => setPaymentMethodId(e.target.value)} className="w-full bg-gray-50 border-none rounded-2xl px-4 py-4 font-bold text-xs appearance-none">
+                  <option value="">支払手段を選択</option>
                   {paymentMethods.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">カテゴリ</label>
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                >
-                  <option value="">未選択</option>
+                <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full bg-gray-50 border-none rounded-2xl px-4 py-4 font-bold text-xs appearance-none">
+                  <option value="">カテゴリ</option>
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
             </div>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">事業区分</label>
-                <select
-                  value={isBusiness}
-                  onChange={(e) => setIsBusiness(e.target.value as any)}
-                  className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                >
-                  <option value="business">事業経費</option>
-                  <option value="personal">プライベート</option>
-                  <option value="pending">未判定（後で選ぶ）</option>
-                </select>
-              </div>
+          <div className="p-8 bg-blue-50 rounded-[40px] space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Business Classification</span>
               {isBusiness === "business" && (
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <label className="block text-sm font-medium text-blue-900 mb-1">事業按分 (%)</label>
+                <div className="flex items-center gap-1">
                   <input
                     type="number"
-                    min="0" max="100"
+                    min="0"
+                    max="100"
                     value={businessRatio}
                     onChange={(e) => setBusinessRatio(e.target.value)}
-                    className="w-full border border-blue-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-10 bg-white border-none rounded-lg py-1 text-xs font-black text-blue-600 text-center focus:ring-1 focus:ring-blue-200 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
+                  <span className="text-[10px] font-black text-blue-400">%</span>
                 </div>
               )}
             </div>
-
-            <div className="pt-4 sticky bottom-0 bg-white border-t border-gray-100 -mb-6 -mx-6 p-6 rounded-b-xl">
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-700 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {isSaving && <Spinner />}
-                {isSaving ? "保存中..." : "保存して完了"}
-              </button>
-            </div>
+            <select value={isBusiness} onChange={(e: any) => setIsBusiness(e.target.value)} className="w-full bg-white border-none rounded-2xl px-5 py-4 font-black text-blue-900 text-xs appearance-none mb-4">
+              <option value="business">事業経費</option>
+              <option value="personal">通常支出</option>
+              <option value="pending">後で判定</option>
+            </select>
+            {isBusiness === "business" && (
+              <div className="px-1">
+                <input type="range" min="0" max="100" step="5" value={businessRatio} onChange={(e) => setBusinessRatio(e.target.value)} className="w-full h-1.5 bg-blue-100 rounded-lg appearance-none accent-blue-600" />
+                <div className="flex justify-between mt-2 px-0.5">
+                  <span className="text-[8px] font-bold text-blue-300 uppercase">Personal</span>
+                  <span className="text-[8px] font-bold text-blue-300 uppercase">Business</span>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Right Column: Preview & OCR */}
-          <div className="space-y-6 order-1 lg:order-2">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="p-4 bg-gray-50 border-b border-gray-200 font-medium text-gray-700 flex justify-between items-center">
-                <span>画像プレビュー</span>
-                <span className="text-xs text-gray-500">※サーバーにはまだ保存されていません</span>
-              </div>
-              <div className="relative bg-gray-800 flex justify-center py-4">
-                {previewUrl && (
-                  <img
-                    src={previewUrl}
-                    alt="Preview"
-                    className="max-h-[500px] w-auto object-contain"
-                  />
-                )}
-              </div>
+          <button onClick={handleSave} disabled={isSaving} className="w-full bg-gray-900 text-white py-6 rounded-[32px] font-black text-sm active:scale-95 transition-all shadow-2xl">
+            {isSaving ? "保存中..." : "データベースに登録"}
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="relative">
+            {/* OCR Toggle */}
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden mb-4 relative z-20">
+              <button
+                onClick={() => setShowOcrText(!showOcrText)}
+                className="w-full px-6 py-4 flex items-center justify-between text-[10px] font-black text-gray-400 uppercase tracking-widest hover:bg-gray-50 transition-colors"
+              >
+                <span>OCR Raw Data</span>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  className={cn("transition-transform duration-300", showOcrText ? "rotate-180" : "")}
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">OCRテキスト (生データ)</h2>
-              <p className="text-xs text-gray-500 mb-2">
-                抽出の元になったテキストです。誤字がある場合はここで修正して保存できます。
-              </p>
-              <textarea
-                value={ocrText}
-                onChange={(e) => setOcrText(e.target.value)}
-                className="w-full h-64 border border-gray-300 rounded-lg p-3 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none"
-              />
+            {/* OCR Expanded Content (Overlapping Preview) */}
+            {showOcrText && (
+              <>
+                <div
+                  className="fixed inset-0 z-[25]"
+                  onClick={() => setShowOcrText(false)}
+                />
+                <div className="absolute top-[60px] inset-x-0 z-[30] p-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="bg-white/95 backdrop-blur-md rounded-3xl border border-gray-100 shadow-2xl p-4">
+                    <textarea
+                      value={ocrText}
+                      onChange={(e) => setOcrText(e.target.value)}
+                      className="w-full h-80 bg-gray-50 border-none rounded-2xl p-4 text-[10px] font-mono font-medium text-gray-500 resize-none outline-none focus:ring-1 focus:ring-blue-100"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Preview stays below in flow, but z-index is low */}
+            <div className="bg-white rounded-[40px] overflow-hidden border border-gray-100 shadow-sm relative z-0">
+              <div className="absolute top-4 left-4 z-10 bg-black/50 backdrop-blur-md text-[8px] text-white px-2 py-1 rounded font-black tracking-widest uppercase">Preview</div>
+              {previewUrl && <img src={previewUrl} alt="Receipt" className="w-full h-auto object-contain bg-gray-900" />}
             </div>
           </div>
         </div>

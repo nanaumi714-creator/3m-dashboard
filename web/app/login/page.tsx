@@ -76,7 +76,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-8">
+      <div className="flex min-h-screen items-center justify-end px-4 py-8 md:px-8 lg:px-12">
         <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <h1 className="text-3xl font-bold text-gray-900">ログイン</h1>
           <p className="mt-2 text-gray-600">

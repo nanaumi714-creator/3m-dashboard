@@ -16,12 +16,8 @@ export default function RootLayout({
     <html lang="ja">
       <body className="min-h-screen bg-gray-50 text-gray-900">
         <main className="min-h-screen">
-
-
-          <div className="mx-auto max-w-6xl px-4 py-6">
-            <DevAutoLogin />
-            {children}
-          </div>
+          <DevAutoLogin />
+          {children}
         </main>
       </body>
     </html>

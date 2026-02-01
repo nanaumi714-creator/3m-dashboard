@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Database } from "@/lib/database.types";
+import { cn } from "@/lib/utils";
 
 type Transaction = Database["public"]["Tables"]["transactions"]["Row"];
 type ExpenseCategory = Database["public"]["Tables"]["expense_categories"]["Row"];
@@ -19,7 +20,6 @@ export default function TriagePage() {
   const [modalNote, setModalNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch unjudged transactions and categories
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -30,17 +30,8 @@ export default function TriagePage() {
         .limit(200);
 
       if (transactionError) throw transactionError;
-
-      const unjudged = (transactionData as any[]).filter(
-        (tx) => !tx.transaction_business_info
-      );
-
-      const { data: categoryData, error: categoryError } = await supabase
-        .from("expense_categories")
-        .select("*")
-        .eq("is_active", true)
-        .order("name");
-
+      const unjudged = (transactionData as any[]).filter((tx) => !tx.transaction_business_info);
+      const { data: categoryData, error: categoryError } = await supabase.from("expense_categories").select("*").eq("is_active", true).order("name");
       if (categoryError) throw categoryError;
 
       setUntriaged(unjudged);
@@ -52,9 +43,7 @@ export default function TriagePage() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const openBusinessModal = (tx: Transaction) => {
     setEditingTx(tx);
@@ -63,187 +52,141 @@ export default function TriagePage() {
     setModalNote("");
   };
 
-  const handleJudge = async (
-    txId: string,
-    isBusiness: boolean,
-    ratio: number,
-    catId: string | null,
-    note: string | null
-  ) => {
+  const handleJudge = async (txId: string, isBusiness: boolean, ratio: number, catId: string | null, note: string | null) => {
     setIsSubmitting(true);
     try {
-      const { error } = await supabase
-        .from("transaction_business_info")
-        .insert({
-          transaction_id: txId,
-          is_business: isBusiness,
-          business_ratio: isBusiness ? ratio : 0,
-          category_id: catId || null,
-          audit_note: note || null,
-          judged_at: new Date().toISOString(),
-          judged_by: "user"
-        });
-
+      const { error } = await supabase.from("transaction_business_info").insert({
+        transaction_id: txId,
+        is_business: isBusiness,
+        business_ratio: isBusiness ? ratio : 0,
+        category_id: catId || null,
+        audit_note: note || null,
+        judged_at: new Date().toISOString(),
+        judged_by: "user"
+      });
       if (error) throw error;
       setUntriaged((prev) => prev.filter((t) => t.id !== txId));
       setEditingTx(null);
     } catch (e) {
-      console.error("Failed to judge", e);
       alert("保存に失敗しました");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handlePersonal = (tx: Transaction) => {
-    if (window.confirm(`「${tx.description}」をプライベート支出（0%）として確定しますか？`)) {
-      handleJudge(tx.id, false, 0, null, null);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+      <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <p className="text-gray-400 font-bold text-sm">読み込み中...</p>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        {/* Header */}
-        <div className="mb-10 text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">未判定キュー</h1>
-          <p className="text-gray-600">
-            判定が必要な取引が <span className="font-bold text-blue-600">{untriaged.length}</span> 件あります
-          </p>
+    <div className="max-w-4xl mx-auto pb-24 px-1">
+      {/* Header */}
+      <div className="mb-8 px-2 overflow-hidden">
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">判定待ち</h1>
+          <span className="bg-orange-600 text-white px-2.5 py-0.5 rounded-lg text-[10px] font-black">{untriaged.length}</span>
         </div>
-
-        {/* Transactions List */}
-        <div className="space-y-4">
-          {untriaged.map((tx) => (
-            <div key={tx.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-shadow">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 mb-1">
-                  <span className="text-xs font-semibold text-gray-400 font-mono">
-                    {tx.occurred_on}
-                  </span>
-                  <span className="h-1 w-1 bg-gray-300 rounded-full"></span>
-                  <span className="text-sm font-bold text-gray-900">
-                    ¥{Math.abs(tx.amount_yen).toLocaleString()}
-                  </span>
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 truncate pr-4" title={tx.description}>
-                  {tx.description}
-                </h3>
-              </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <button
-                  onClick={() => openBusinessModal(tx)}
-                  className="bg-blue-600 text-white px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-colors font-bold text-sm shadow-sm"
-                >
-                  事業経費
-                </button>
-                <button
-                  onClick={() => handlePersonal(tx)}
-                  className="bg-white text-gray-700 border border-gray-200 px-5 py-2.5 rounded-xl hover:bg-gray-50 transition-colors font-bold text-sm"
-                >
-                  私用
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {untriaged.length === 0 && (
-          <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
-            <div className="text-5xl mb-4">✨</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-1">すべて完了です！</h3>
-            <p className="text-gray-500">未判定の取引はありません。</p>
-          </div>
-        )}
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">整理して確定申告を効率化しましょう</p>
       </div>
 
-      {/* Business Triage Modal */}
+      {/* List */}
+      <div className="space-y-3 px-1">
+        {untriaged.map((tx) => (
+          <div key={tx.id} className="bg-white rounded-3xl p-4 md:p-5 shadow-sm border border-gray-100 flex items-center justify-between group transition-all active:scale-[0.99] hover:border-blue-100">
+            <div className="flex-1 min-w-0 pr-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[9px] font-black text-gray-300 uppercase tracking-tighter">
+                  {tx.occurred_on.replace(/-/g, '/')}
+                </span>
+                <span className="w-1 h-1 bg-gray-200 rounded-full"></span>
+                <span className="text-[9px] font-bold text-gray-400 truncate max-w-[100px]">{tx.vendor_raw || "不明"}</span>
+              </div>
+              <h3 className="text-[12px] font-black text-gray-900 truncate tracking-tight mb-1" title={tx.description}>
+                {tx.description}
+              </h3>
+              <div className="text-[13px] font-black text-gray-900 tracking-tighter">
+                ¥{Math.abs(tx.amount_yen).toLocaleString()}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => openBusinessModal(tx)}
+                className="bg-blue-50 text-blue-600 px-3 py-2.5 rounded-xl font-black text-[10px] active:bg-blue-600 active:text-white transition-all shadow-sm shadow-blue-50"
+              >
+                事業
+              </button>
+              <button
+                onClick={() => handleJudge(tx.id, false, 0, null, null)}
+                className="bg-gray-50 text-gray-400 px-3 py-2.5 rounded-xl font-black text-[10px] active:bg-gray-900 active:text-white transition-all underline-none"
+              >
+                私用
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {untriaged.length === 0 && (
+        <div className="text-center py-24 bg-white rounded-[40px] border border-gray-100 shadow-sm mx-2">
+          <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+          </div>
+          <h3 className="text-xl font-black text-gray-900 tracking-tight">完了！</h3>
+          <p className="text-gray-400 text-xs font-bold mt-1">すべての取引の判定が終わりました。</p>
+        </div>
+      )}
+
+      {/* Modal - Redesigned for High Density */}
       {editingTx && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">事業判定の登録</h2>
-                  <p className="text-sm text-gray-500 mt-1">{editingTx.description}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-gray-400 font-mono">{editingTx.occurred_on}</p>
-                  <p className="text-lg font-bold text-gray-900">¥{Math.abs(editingTx.amount_yen).toLocaleString()}</p>
-                </div>
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm shadow-2xl flex items-end sm:items-center justify-center z-[110] p-0 sm:p-4 animate-in fade-in duration-200" onClick={() => setEditingTx(null)}>
+          <div className="bg-white rounded-t-[40px] sm:rounded-[40px] w-full max-w-sm overflow-hidden p-8 animate-in slide-in-from-bottom-10" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-start mb-8">
+              <div className="min-w-0 flex-1">
+                <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase tracking-widest mb-2 inline-block">事業判定</span>
+                <h2 className="text-lg font-black text-gray-900 tracking-tight truncate">{editingTx.description}</h2>
+                <p className="text-[10px] text-gray-400 font-bold mt-1 uppercase tracking-tighter">{editingTx.vendor_raw || "不明"} / {editingTx.occurred_on}</p>
               </div>
+              <div className="text-right ml-4 shrink-0">
+                <span className="text-lg font-black text-gray-900 tracking-tighter">¥{Math.abs(editingTx.amount_yen).toLocaleString()}</span>
+              </div>
+            </div>
 
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">カテゴリ</label>
-                  <select
-                    value={modalCategoryId}
-                    onChange={(e) => setModalCategoryId(e.target.value)}
-                    className="w-full bg-gray-50 border-none rounded-2xl px-4 py-3.5 focus:ring-2 focus:ring-blue-500 outline-none font-medium text-gray-900"
-                  >
+            <div className="space-y-6">
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-2">カテゴリ</label>
+                <div className="relative">
+                  <select value={modalCategoryId} onChange={(e) => setModalCategoryId(e.target.value)} className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 font-bold text-gray-900 text-sm appearance-none">
                     <option value="">未選択</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
-                </div>
-
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <label className="text-sm font-bold text-gray-700">事業按分率</label>
-                    <span className="text-sm font-bold text-blue-600">{modalRatio}%</span>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-300">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m6 9 6 6 6-6" /></svg>
                   </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="5"
-                    value={modalRatio}
-                    onChange={(e) => setModalRatio(Number(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                  />
-                  <div className="flex justify-between text-[10px] text-gray-400 mt-1 font-mono">
-                    <span>0%</span>
-                    <span>50%</span>
-                    <span>100%</span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">メモ</label>
-                  <textarea
-                    value={modalNote}
-                    onChange={(e) => setModalNote(e.target.value)}
-                    placeholder="判定の理由や詳細な内容..."
-                    rows={2}
-                    className="w-full bg-gray-50 border-none rounded-2xl px-4 py-3.5 focus:ring-2 focus:ring-blue-500 outline-none font-medium text-gray-900 resize-none"
-                  />
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-8">
-                <button
-                  onClick={() => setEditingTx(null)}
-                  className="flex-1 bg-gray-100 text-gray-600 py-4 rounded-2xl font-bold hover:bg-gray-200 transition-colors"
-                >
-                  キャンセル
-                </button>
-                <button
-                  disabled={isSubmitting}
-                  onClick={() => handleJudge(editingTx.id, true, modalRatio, modalCategoryId, modalNote)}
-                  className="flex-[2] bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 disabled:opacity-50"
-                >
-                  {isSubmitting ? "保存中..." : "判定を確定する"}
-                </button>
+              <div>
+                <div className="flex justify-between mb-4">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">按分率</label>
+                  <span className="text-sm font-black text-blue-600">{modalRatio}% <span className="text-[10px] text-gray-400 ml-1">BUSINESS</span></span>
+                </div>
+                <div className="px-1">
+                  <input type="range" min="0" max="100" step="5" value={modalRatio} onChange={(e) => setModalRatio(Number(e.target.value))} className="w-full h-1.5 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                </div>
               </div>
+
+              <button
+                disabled={isSubmitting}
+                onClick={() => handleJudge(editingTx.id, true, modalRatio, modalCategoryId, modalNote)}
+                className="w-full bg-gray-900 text-white py-5 rounded-3xl font-black text-sm active:scale-[0.98] transition-all shadow-xl shadow-gray-200 mt-4 disabled:opacity-50"
+              >
+                {isSubmitting ? "保存中..." : "判定を確定する"}
+              </button>
+              <button onClick={() => setEditingTx(null)} className="w-full text-center text-[10px] font-black text-gray-300 hover:text-gray-900 py-4 uppercase tracking-widest">Close</button>
             </div>
           </div>
         </div>
@@ -251,4 +194,3 @@ export default function TriagePage() {
     </div>
   );
 }
-
