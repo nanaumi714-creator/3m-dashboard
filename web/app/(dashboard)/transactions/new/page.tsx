@@ -28,32 +28,40 @@ async function sha256(value: string): Promise<string> {
     .join("");
 }
 
+type Category = {
+  id: string;
+  name: string;
+};
+
 export default function TransactionNewPage() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [occurredOn, setOccurredOn] = useState("");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [occurredOn, setOccurredOn] = useState(new Date().toISOString().split('T')[0]);
   const [amountYen, setAmountYen] = useState("");
   const [description, setDescription] = useState("");
   const [vendorRaw, setVendorRaw] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [isBusiness, setIsBusiness] = useState(true);
+  const [businessRatio, setBusinessRatio] = useState("100");
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadPaymentMethods() {
+    async function loadOptions() {
       try {
-        const { data, error } = await supabase
-          .from("payment_methods")
-          .select("id, name")
-          .eq("is_active", true)
-          .order("name");
-        if (error) throw error;
-        setPaymentMethods(data || []);
+        const [{ data: methods }, { data: cats }] = await Promise.all([
+          supabase.from("payment_methods").select("id, name").eq("is_active", true).order("name"),
+          supabase.from("expense_categories").select("id, name").eq("is_active", true).order("name"),
+        ]);
+        setPaymentMethods((methods || []) as PaymentMethod[]);
+        setCategories((cats || []) as Category[]);
       } catch (err) {
-        console.error("Failed to load payment methods", err);
+        console.error("Failed to load options", err);
       }
     }
 
-    loadPaymentMethods();
+    loadOptions();
   }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -97,7 +105,7 @@ export default function TransactionNewPage() {
         .insert({
           source_type: SOURCE_TYPE,
           metadata: {
-            created_by: "gui",
+            created_by: "gui_manual",
           },
         })
         .select("id")
@@ -109,10 +117,10 @@ export default function TransactionNewPage() {
       }
 
       const fingerprint = await sha256(
-        [occurredOn, normalizedAmount, paymentMethodId, vendorNorm, SOURCE_TYPE].join("|")
+        [occurredOn, normalizedAmount, paymentMethodId, vendorNorm, SOURCE_TYPE, Date.now()].join("|")
       );
 
-      const { error } = await supabase.from("transactions").insert({
+      const { data: transaction, error } = await supabase.from("transactions").insert({
         occurred_on: occurredOn,
         amount_yen: normalizedAmount,
         description: description.trim(),
@@ -121,16 +129,33 @@ export default function TransactionNewPage() {
         vendor_raw: vendorValue,
         vendor_norm: vendorNorm,
         fingerprint,
-      });
+      }).select("id").single();
 
-      if (error) throw error;
+      if (error || !transaction) throw error || new Error("Failed to create transaction.");
+
+      // Create Business Info / Classification
+      const { error: infoError } = await supabase
+        .from("transaction_business_info")
+        .insert({
+          transaction_id: transaction.id,
+          is_business: isBusiness,
+          business_ratio: isBusiness ? Number(businessRatio) : 0,
+          category_id: categoryId || null,
+          judged_by: "manual_entry",
+          judged_at: new Date().toISOString(),
+          audit_note: "Manually registered with category."
+        });
+
+      if (infoError) throw infoError;
 
       setStatusMessage("取引を登録しました。");
-      setOccurredOn("");
       setAmountYen("");
       setDescription("");
       setVendorRaw("");
       setPaymentMethodId("");
+      setCategoryId("");
+      // keep date and business flags for next entry if needed, or reset? 
+      // Resetting is usually safer
     } catch (err) {
       console.error("Failed to create transaction", err);
       setStatusMessage(
@@ -158,7 +183,7 @@ export default function TransactionNewPage() {
         </div>
 
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -210,39 +235,86 @@ export default function TransactionNewPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                支払い手段
-              </label>
-              <select
-                value={paymentMethodId}
-                onChange={(event) => setPaymentMethodId(event.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">選択してください</option>
-                {paymentMethods.map((method) => (
-                  <option key={method.id} value={method.id}>
-                    {method.name}
-                  </option>
-                ))}
-              </select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  支払い手段
+                </label>
+                <select
+                  value={paymentMethodId}
+                  onChange={(event) => setPaymentMethodId(event.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">選択してください</option>
+                  {paymentMethods.map((method) => (
+                    <option key={method.id} value={method.id}>
+                      {method.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  カテゴリ
+                </label>
+                <select
+                  value={categoryId}
+                  onChange={(event) => setCategoryId(event.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">未選択</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">事業区分</label>
+                <select
+                  value={isBusiness ? "business" : "personal"}
+                  onChange={(e) => setIsBusiness(e.target.value === "business")}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="business">事業経費</option>
+                  <option value="personal">プライベート</option>
+                </select>
+              </div>
+              {isBusiness && (
+                <div className="bg-blue-50 p-4 rounded-xl">
+                  <label className="block text-sm font-medium text-blue-900 mb-1">事業按分 (%)</label>
+                  <input
+                    type="number"
+                    min="0" max="100"
+                    value={businessRatio}
+                    onChange={(e) => setBusinessRatio(e.target.value)}
+                    className="w-full border border-blue-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pt-4">
               <p className="text-sm text-gray-600">
                 入力内容は保存後に編集可能です。
               </p>
               <button
                 type="submit"
                 disabled={submitting}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-blue-600 text-white px-8 py-4 rounded-xl hover:bg-blue-700 transition-colors font-bold text-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? "保存中..." : "保存する"}
               </button>
             </div>
 
             {statusMessage && (
-              <p className="text-sm text-gray-700">{statusMessage}</p>
+              <div className={`p-4 rounded-lg text-sm ${statusMessage.includes('失敗') || statusMessage.includes('入力してください') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                {statusMessage}
+              </div>
             )}
           </form>
         </div>

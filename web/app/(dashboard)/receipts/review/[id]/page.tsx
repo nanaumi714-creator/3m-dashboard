@@ -469,11 +469,34 @@ export default function ReceiptReviewPage() {
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
                 OCR結果
               </h2>
-              <div className="text-sm text-gray-500 mb-3">
-                信頼度: {receipt.ocr_confidence?.toFixed(2) ?? "-"}
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm text-gray-500">
+                  信頼度: {receipt.ocr_confidence?.toFixed(2) ?? "-"}
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const newText = prompt("OCRテキストを修正", receipt.ocr_text || "");
+                    if (newText !== null && newText !== receipt.ocr_text) {
+                      const { error } = await supabase
+                        .from("receipts")
+                        .update({ ocr_text: newText })
+                        .eq("id", receipt.id);
+                      if (!error) {
+                        setReceipt(prev => prev ? { ...prev, ocr_text: newText } : null);
+                        alert("OCRテキストを更新しました");
+                      } else {
+                        alert("更新に失敗しました");
+                      }
+                    }
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  ［編集］
+                </button>
               </div>
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-700 whitespace-pre-wrap max-h-96 overflow-y-auto">
-                {ocrPreview}
+                {receipt.ocr_text || "（テキストなし）"}
               </div>
             </div>
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">

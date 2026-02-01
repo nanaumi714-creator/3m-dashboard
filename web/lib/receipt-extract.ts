@@ -2,6 +2,9 @@ export type ReceiptExtract = {
   occurredOn: string | null;
   amountYen: number | null;
   vendorName: string | null;
+  description: string | null;
+  categoryHint: string | null;
+  paymentMethodHint: string | null;
   source: "llm" | "fallback";
 };
 
@@ -51,10 +54,15 @@ function extractFallback(ocrText: string): ReceiptExtract {
     .sort((a, b) => b - a)[0];
   const vendorMatch = ocrText.split("\n").find((line) => line.trim().length > 1) || null;
 
+  const today = new Date().toISOString().split('T')[0];
+
   return {
-    occurredOn: normalizeDate(dateMatch?.[1] ?? null),
+    occurredOn: normalizeDate(dateMatch?.[1] ?? null) || today,
     amountYen: normalizeAmount(amountValue ?? null),
     vendorName: vendorMatch ? vendorMatch.trim().slice(0, 40) : null,
+    description: null,
+    categoryHint: null,
+    paymentMethodHint: null,
     source: "fallback",
   };
 }
@@ -73,6 +81,21 @@ function parseJsonCandidate(content: string): Record<string, unknown> | null {
   }
 }
 
+const SYSTEM_PROMPT = `あなたは日本のレシート・領収書からデータを抽出するアシスタントです。
+以下のOCRテキストから情報を抽出し、JSON形式で返してください。
+
+必須フィールド:
+- occurredOn: 取引日（YYYY-MM-DD形式、不明ならnull）
+- amountYen: 合計金額（数値、税込み合計を優先、不明ならnull）
+- vendorName: 店舗名・取引先名（文字列、不明ならnull）
+
+オプションフィールド:
+- description: 購入内容の簡潔な説明（例: "コンビニ購入"、"ガソリン代"）
+- categoryHint: 経費カテゴリの推測（例: "事務用品", "交通費", "会議費", "通信費"）
+- paymentMethodHint: 支払い方法の推測（例: "現金", "カード", "電子マネー", "銀行振込", "QR決済"）
+
+JSONのみを返してください。説明文は不要です。`;
+
 export async function extractReceiptFields(
   ocrText: string
 ): Promise<ReceiptExtract> {
@@ -82,25 +105,29 @@ export async function extractReceiptFields(
       occurredOn: null,
       amountYen: null,
       vendorName: null,
+      description: null,
+      categoryHint: null,
+      paymentMethodHint: null,
       source: "fallback",
     };
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
+    console.warn("OPENAI_API_KEY not set. Using fallback extraction.");
     return extractFallback(trimmedText);
   }
 
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+
   const messages: OpenAiMessage[] = [
     {
       role: "system",
-      content:
-        "You extract structured receipt data. Return JSON only with keys: occurredOn (YYYY-MM-DD or null), amountYen (number or null), vendorName (string or null).",
+      content: SYSTEM_PROMPT,
     },
     {
       role: "user",
-      content: `OCR text:\n${trimmedText}`,
+      content: `OCRテキスト:\n${trimmedText}`,
     },
   ];
 
@@ -120,6 +147,12 @@ export async function extractReceiptFields(
     });
 
     if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      console.error("OpenAI API error details:", {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorBody
+      });
       return extractFallback(trimmedText);
     }
 
@@ -144,11 +177,22 @@ export async function extractReceiptFields(
     );
     const vendorName =
       typeof json.vendorName === "string" ? json.vendorName.trim() : null;
+    const description =
+      typeof json.description === "string" ? json.description.trim() : null;
+    const categoryHint =
+      typeof json.categoryHint === "string" ? json.categoryHint.trim() : null;
+    const paymentMethodHint =
+      typeof json.paymentMethodHint === "string" ? json.paymentMethodHint.trim() : null;
+
+    const today = new Date().toISOString().split('T')[0];
 
     return {
-      occurredOn,
+      occurredOn: occurredOn || today,
       amountYen,
       vendorName: vendorName || null,
+      description: description || null,
+      categoryHint: categoryHint || null,
+      paymentMethodHint: paymentMethodHint || null,
       source: "llm",
     };
   } catch (error) {
