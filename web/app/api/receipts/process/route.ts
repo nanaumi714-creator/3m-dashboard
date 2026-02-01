@@ -182,19 +182,21 @@ export async function POST(request: Request) {
 
         if (transactionError || !transaction) throw transactionError;
 
-        // Create Business Info
-        const { error: infoError } = await supabase
-            .from("transaction_business_info")
-            .insert({
-                transaction_id: transaction.id,
-                is_business: resolvedIsBusiness,
-                business_ratio: resolvedIsBusiness ? resolvedRatio : 0,
-                category_id: resolvedCategoryId,
-                judged_by: "receipt_upload_v2",
-                audit_note: "Receipt review confirmed (v2).",
-            });
+        // Create Business Info (Only if is_business is NOT null/undefined)
+        if (body.isBusiness !== null && body.isBusiness !== undefined) {
+            const { error: infoError } = await supabase
+                .from("transaction_business_info")
+                .insert({
+                    transaction_id: transaction.id,
+                    is_business: resolvedIsBusiness,
+                    business_ratio: resolvedIsBusiness ? resolvedRatio : 0,
+                    category_id: resolvedCategoryId,
+                    judged_by: "receipt_upload_v2",
+                    audit_note: "Receipt review confirmed (v2).",
+                });
 
-        if (infoError) throw infoError;
+            if (infoError) throw infoError;
+        }
 
         // 4. Link Receipt to Transaction
         const { error: updateError } = await supabase

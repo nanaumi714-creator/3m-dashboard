@@ -590,25 +590,39 @@ export default function TransactionsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {tx.payment_methods?.name || "Unknown"}
                       </td>
-                      <td className={cn(
-                        "px-6 py-4 whitespace-nowrap text-sm font-mono text-right font-semibold",
-                        isExpense ? "text-red-600" : "text-green-600"
-                      )}>
-                        {isExpense ? "" : "+"}¥{Math.abs(tx.amount_yen).toLocaleString()}
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <div className={cn(
+                          "text-sm font-mono font-semibold",
+                          isExpense ? "text-red-600" : "text-green-600"
+                        )}>
+                          {isExpense ? "" : "+"}¥{Math.abs(tx.amount_yen).toLocaleString()}
+                        </div>
+                        {tbi && tbi.is_business && tbi.business_ratio > 0 && tbi.business_ratio < 100 && (
+                          <div className="text-[10px] text-gray-500 mt-0.5 space-x-1">
+                            <span>事: ¥{Math.abs(Math.floor(tx.amount_yen * (tbi.business_ratio / 100))).toLocaleString()}</span>
+                            <span>生: ¥{Math.abs(tx.amount_yen - Math.floor(tx.amount_yen * (tbi.business_ratio / 100))).toLocaleString()}</span>
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-0.5">
                           <span className={cn(
-                            "inline-flex px-3 py-1 text-xs font-medium rounded-full w-fit",
-                            statusLabel === "未判定" && "bg-gray-100 text-gray-800",
-                            statusLabel === "生活" && "bg-blue-100 text-blue-800",
-                            statusLabel === "事業" && "bg-amber-100 text-amber-800",
-                            statusLabel === "按分" && "bg-purple-100 text-purple-800"
+                            "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
+                            !tbi
+                              ? "bg-gray-100 text-gray-800"
+                              : !tbi.is_business
+                                ? "bg-purple-100 text-purple-800"
+                                : tbi.business_ratio < 100
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-green-100 text-green-800"
                           )}>
                             {statusLabel}
+                            {tbi?.is_business && tbi.business_ratio < 100 && ` (${tbi.business_ratio}%)`}
                           </span>
                           {categoryName && (
-                            <span className="text-xs text-gray-500">📁 {categoryName}</span>
+                            <span className="text-[10px] text-gray-400 truncate max-w-[100px]" title={categoryName}>
+                              {categoryName}
+                            </span>
                           )}
                         </div>
                       </td>

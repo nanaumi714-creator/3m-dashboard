@@ -72,7 +72,7 @@ export default function ReceiptUploadPage() {
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [businessRatio, setBusinessRatio] = useState("100");
-  const [isBusiness, setIsBusiness] = useState(true);
+  const [isBusiness, setIsBusiness] = useState<"business" | "personal" | "pending">("business");
 
   // -- State: Suggestion / Meta
   const [matchedVendorName, setMatchedVendorName] = useState<string | null>(null);
@@ -197,7 +197,9 @@ export default function ReceiptUploadPage() {
         setMatchedVendorName(suggestion.matchedVendorName || null);
         if (suggestion.categoryId) setCategoryId(suggestion.categoryId);
         if (typeof suggestion.businessRatio === "number") setBusinessRatio(String(suggestion.businessRatio));
-        if (typeof suggestion.isBusiness === "boolean") setIsBusiness(suggestion.isBusiness);
+        if (typeof suggestion.isBusiness === "boolean") {
+          setIsBusiness(suggestion.isBusiness ? "business" : "personal");
+        }
       }
     } catch (e) { console.error(e); }
   }
@@ -225,7 +227,7 @@ export default function ReceiptUploadPage() {
         paymentMethodId,
         categoryId: categoryId || null,
         businessRatio: Number(businessRatio),
-        isBusiness,
+        isBusiness: isBusiness === "pending" ? null : isBusiness === "business",
       };
 
       const formData = new FormData();
@@ -414,15 +416,16 @@ export default function ReceiptUploadPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">事業区分</label>
                 <select
-                  value={isBusiness ? "business" : "personal"}
-                  onChange={(e) => setIsBusiness(e.target.value === "business")}
+                  value={isBusiness}
+                  onChange={(e) => setIsBusiness(e.target.value as any)}
                   className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
                 >
                   <option value="business">事業経費</option>
                   <option value="personal">プライベート</option>
+                  <option value="pending">未判定（後で選ぶ）</option>
                 </select>
               </div>
-              {isBusiness && (
+              {isBusiness === "business" && (
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <label className="block text-sm font-medium text-blue-900 mb-1">事業按分 (%)</label>
                   <input

@@ -42,7 +42,7 @@ export default function TransactionNewPage() {
   const [vendorRaw, setVendorRaw] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [isBusiness, setIsBusiness] = useState(true);
+  const [isBusiness, setIsBusiness] = useState<"business" | "personal" | "pending">("business");
   const [businessRatio, setBusinessRatio] = useState("100");
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -133,20 +133,22 @@ export default function TransactionNewPage() {
 
       if (error || !transaction) throw error || new Error("Failed to create transaction.");
 
-      // Create Business Info / Classification
-      const { error: infoError } = await supabase
-        .from("transaction_business_info")
-        .insert({
-          transaction_id: transaction.id,
-          is_business: isBusiness,
-          business_ratio: isBusiness ? Number(businessRatio) : 0,
-          category_id: categoryId || null,
-          judged_by: "manual_entry",
-          judged_at: new Date().toISOString(),
-          audit_note: "Manually registered with category."
-        });
+      // Create Business Info / Classification (only if NOT pending)
+      if (isBusiness !== "pending") {
+        const { error: infoError } = await supabase
+          .from("transaction_business_info")
+          .insert({
+            transaction_id: transaction.id,
+            is_business: isBusiness === "business",
+            business_ratio: isBusiness === "business" ? Number(businessRatio) : 0,
+            category_id: categoryId || null,
+            judged_by: "manual_entry",
+            judged_at: new Date().toISOString(),
+            audit_note: "Manually registered with category."
+          });
 
-      if (infoError) throw infoError;
+        if (infoError) throw infoError;
+      }
 
       setStatusMessage("取引を登録しました。");
       setAmountYen("");
@@ -276,15 +278,16 @@ export default function TransactionNewPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">事業区分</label>
                 <select
-                  value={isBusiness ? "business" : "personal"}
-                  onChange={(e) => setIsBusiness(e.target.value === "business")}
+                  value={isBusiness}
+                  onChange={(e) => setIsBusiness(e.target.value as any)}
                   className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="business">事業経費</option>
                   <option value="personal">プライベート</option>
+                  <option value="pending">未判定（後で選ぶ）</option>
                 </select>
               </div>
-              {isBusiness && (
+              {isBusiness === "business" && (
                 <div className="bg-blue-50 p-4 rounded-xl">
                   <label className="block text-sm font-medium text-blue-900 mb-1">事業按分 (%)</label>
                   <input
