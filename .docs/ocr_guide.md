@@ -10,21 +10,20 @@ Google Vision APIを使用したレシートOCR機能。
 
 ### 1. Google Cloud Projectの設定
 
-1. https://console.cloud.google.com/ でプロジェクト作成
-2. Vision API を有効化
-3. サービスアカウント作成
-4. JSONキーをダウンロード
+1. [Google Cloud Console](https://console.cloud.google.com/) でプロジェクト作成
+2. **Cloud Vision API** を有効化
+3. 「認証情報」から **APIキー** を作成
 
 ### 2. 環境変数設定
 
+`.env.local` にAPIキーを設定します。
+
 ```bash
-export GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json
+# Webアプリ側 (.env.local)
+GOOGLE_VISION_API_KEY=AIzaSy...
 ```
 
-Vercelの場合:
-```
-GOOGLE_APPLICATION_CREDENTIALS=/var/task/credentials.json
-```
+> **Note**: サービスアカウントJSONファイルは不要です。Web向けに軽量なAPIキー方式を採用しています。
 
 ---
 
@@ -110,10 +109,9 @@ Google Vision API 料金:
 **原因**: API認証情報が不正
 
 **対処法**:
-```bash
-# 認証確認
-gcloud auth application-default print-access-token
-```
+1. `.env.local` に `GOOGLE_VISION_API_KEY` が正しく設定されているか確認
+2. Google Cloud Console で APIキーの制限（IP制限など）がかかりすぎていないか確認
+3. Cloud Vision API が有効化されているか確認
 
 ### 問題: 店舗名が検出されない
 

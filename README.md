@@ -177,7 +177,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
 # OCR (オプション)
 OCR_MONTHLY_LIMIT=100
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json
+GOOGLE_VISION_API_KEY=AIzaSy...
 
 # その他
 NODE_ENV=development

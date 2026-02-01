@@ -8,7 +8,7 @@
         "NEXT_PUBLIC_SUPABASE_URL": "@supabase-url",
         "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase-anon-key",
         "OCR_MONTHLY_LIMIT": "100",
-        "GOOGLE_APPLICATION_CREDENTIALS": "@google-credentials-path"
+        "GOOGLE_VISION_API_KEY": "@google-vision-api-key"
     },
     "regions": [
         "hnd1"
