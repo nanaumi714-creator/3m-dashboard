@@ -5,21 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { normalizeVendor, sha256 } from "@/lib/utils/shared";
 
 const SOURCE_TYPE = "manual";
 
 type PaymentMethod = { id: string; name: string; };
 type Category = { id: string; name: string; };
 
-function normalizeVendor(raw: string): string {
-  return raw.slice(0, 30).normalize("NFKC").replace(/[\s\p{P}\p{S}]/gu, "").toLowerCase();
-}
-
-async function sha256(value: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(value));
-  return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
 
 export default function TransactionNewPage() {
   const router = useRouter();

@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { normalizeVendor, sha256, formatDate } from "@/lib/utils/shared";
+import { cn } from "@/lib/utils";
+import { CsvDropzone } from "./components/CsvDropzone";
+import { ColumnMappingForm } from "./components/ColumnMappingForm";
+import { CsvPreview } from "./components/CsvPreview";
 
 const REQUIRED_HEADERS = {
   date: "利用日",
@@ -22,23 +27,6 @@ type ValidationResult = {
   rowNumber: number;
   issues: string[];
 };
-
-function normalizeVendor(raw: string): string {
-  return raw
-    .slice(0, 30)
-    .normalize("NFKC")
-    .replace(/[\s\p{P}\p{S}]/gu, "")
-    .toLowerCase();
-}
-
-async function sha256(value: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(value);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
@@ -91,15 +79,6 @@ function parseCsv(text: string): string[][] {
   return rows;
 }
 
-function formatDate(value: string): string | null {
-  const trimmed = value.trim();
-  if (!/^\d{4}\/\d{2}\/\d{2}$/.test(trimmed)) {
-    return null;
-  }
-  const [year, month, day] = trimmed.split("/");
-  return `${year}-${month}-${day}`;
-}
-
 function toRowMap(headers: string[], values: string[]): CsvRow {
   return headers.reduce<CsvRow>((acc, header, index) => {
     acc[header] = values[index] ?? "";
@@ -108,7 +87,6 @@ function toRowMap(headers: string[], values: string[]): CsvRow {
 }
 
 export default function CsvImportPage() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
   const [fileName, setFileName] = useState("");
@@ -141,14 +119,6 @@ export default function CsvImportPage() {
     }
 
     loadPaymentMethods();
-  }, []);
-
-  // Auto-trigger file input on mount
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fileInputRef.current?.click();
-    }, 500);
-    return () => clearTimeout(timer);
   }, []);
 
   const hasHeaders = headers.length > 0;
@@ -373,148 +343,30 @@ export default function CsvImportPage() {
         </div>
 
         <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mb-6 space-y-8">
-          <div>
-            <h2 className="text-lg font-black text-gray-900 mb-4">CSVファイルを選択</h2>
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-200 rounded-3xl p-10 text-center hover:border-blue-400 hover:bg-blue-50/30 transition-all cursor-pointer group"
-            >
-              <svg className="mx-auto h-12 w-12 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              <p className="mt-4 text-sm font-bold text-gray-600">クリックしてファイルを選択</p>
-              <p className="text-xs text-gray-400 mt-1">.csv 形式のファイルに対応しています</p>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="text/csv"
-              onChange={handleFileChange}
-              className="hidden"
-            />
-            {fileName && (
-              <div className="mt-4 flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-xl text-sm font-bold w-fit">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 6 9 17l-5-5" />
-                </svg>
-                選択中: {fileName}
-              </div>
-            )}
-          </div>
+          <CsvDropzone fileName={fileName} onFileChange={handleFileChange} />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-sm font-black text-gray-700 mb-2 ml-1">日付列</label>
-              <select
-                value={dateColumn}
-                onChange={(event) => setDateColumn(event.target.value)}
-                className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700 appearance-none cursor-pointer"
-              >
-                <option value="">選択してください</option>
-                {headers.map((header) => (
-                  <option key={header} value={header}>{header}</option>
-                ))}
-              </select>
-              <p className="text-[10px] font-bold text-blue-500 mt-2 ml-1 uppercase tracking-wider">推奨: {REQUIRED_HEADERS.date}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-black text-gray-700 mb-2 ml-1">金額列</label>
-              <select
-                value={amountColumn}
-                onChange={(event) => setAmountColumn(event.target.value)}
-                className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700 appearance-none cursor-pointer"
-              >
-                <option value="">選択してください</option>
-                {headers.map((header) => (
-                  <option key={header} value={header}>{header}</option>
-                ))}
-              </select>
-              <p className="text-[10px] font-bold text-blue-500 mt-2 ml-1 uppercase tracking-wider">推奨: {REQUIRED_HEADERS.amount}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-black text-gray-700 mb-2 ml-1">摘要/店舗列</label>
-              <select
-                value={descriptionColumn}
-                onChange={(event) => setDescriptionColumn(event.target.value)}
-                className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700 appearance-none cursor-pointer"
-              >
-                <option value="">選択してください</option>
-                {headers.map((header) => (
-                  <option key={header} value={header}>{header}</option>
-                ))}
-              </select>
-              <p className="text-[10px] font-bold text-blue-500 mt-2 ml-1 uppercase tracking-wider">推奨: {REQUIRED_HEADERS.description}</p>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-black text-gray-700 mb-2 ml-1">一括設定する支払い手段</label>
-            <select
-              value={selectedPaymentMethod}
-              onChange={(event) => setSelectedPaymentMethod(event.target.value)}
-              className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700 appearance-none cursor-pointer"
-            >
-              <option value="">選択してください</option>
-              {paymentMethods.map((method) => (
-                <option key={method.id} value={method.id}>{method.name}</option>
-              ))}
-            </select>
-          </div>
+          <ColumnMappingForm
+            headers={headers}
+            dateColumn={dateColumn}
+            amountColumn={amountColumn}
+            descriptionColumn={descriptionColumn}
+            selectedPaymentMethod={selectedPaymentMethod}
+            paymentMethods={paymentMethods}
+            onDateColumnChange={setDateColumn}
+            onAmountColumnChange={setAmountColumn}
+            onDescriptionColumnChange={setDescriptionColumn}
+            onPaymentMethodChange={setSelectedPaymentMethod}
+          />
         </div>
 
-        <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mb-6">
+        <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mb-6 font-medium">
           <h2 className="text-lg font-black text-gray-900 mb-4">プレビュー</h2>
-          {rows.length === 0 ? (
-            <div className="py-10 text-center">
-              <p className="text-gray-400 font-medium">CSVを選ぶとここにデータが表示されます</p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="flex flex-wrap gap-6 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500"></div>Total: {validationSummary.totalRows}</span>
-                <span className="flex items-center gap-2"><div className={cn("w-2 h-2 rounded-full", validationSummary.errorCount > 0 ? "bg-red-500" : "bg-green-500")}></div>Errors: {validationSummary.errorCount}</span>
-              </div>
-              <div className="overflow-x-auto border border-gray-100 rounded-2xl shadow-inner bg-gray-50/30">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50/50 text-gray-500 text-[10px] font-black uppercase tracking-wider">
-                    <tr>
-                      {headers.map((header) => (
-                        <th key={header} className="px-5 py-4 text-left border-b border-gray-100">
-                          {header}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {rows.slice(0, 5).map((row, index) => (
-                      <tr key={index} className="hover:bg-gray-50/50 transition-colors">
-                        {headers.map((header) => (
-                          <td key={header} className="px-5 py-4 text-gray-600 font-medium">
-                            {row[header]}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {validationErrors.length > 0 && (
-                <div className="bg-red-50 border border-red-100 rounded-2xl p-6">
-                  <p className="text-sm font-black text-red-700 mb-3">
-                    フォーマットエラーが見つかりました（先頭5件）
-                  </p>
-                  <ul className="text-sm text-red-600 space-y-2 font-medium">
-                    {validationErrors.slice(0, 5).map((error) => (
-                      <li key={error.rowNumber} className="flex items-center gap-2">
-                        <span className="bg-red-200 text-red-800 text-[10px] px-2 py-0.5 rounded-full font-black">{error.rowNumber}行目</span>
-                        {error.issues.join(" / ")}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
+          <CsvPreview
+            headers={headers}
+            rows={rows}
+            validationErrors={validationErrors}
+            validationSummary={validationSummary}
+          />
         </div>
 
         <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">

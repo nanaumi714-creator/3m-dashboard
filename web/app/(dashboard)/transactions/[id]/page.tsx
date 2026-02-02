@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Database } from "@/lib/database.types";
+import { normalizeVendor, sha256 } from "@/lib/utils/shared";
 
 type Transaction = Database["public"]["Tables"]["transactions"]["Row"] & {
   payment_methods: Database["public"]["Tables"]["payment_methods"]["Row"] | null;
   transaction_business_info:
-    | Database["public"]["Tables"]["transaction_business_info"]["Row"]
-    | null;
+  | Database["public"]["Tables"]["transaction_business_info"]["Row"]
+  | null;
 };
 
 type Receipt = Database["public"]["Tables"]["receipts"]["Row"];
@@ -22,22 +23,6 @@ type OcrUsageSummary = {
   periodStart: string;
 };
 
-function normalizeVendor(raw: string): string {
-  return raw
-    .slice(0, 30)
-    .normalize("NFKC")
-    .replace(/[\s\p{P}\p{S}]/gu, "")
-    .toLowerCase();
-}
-
-async function sha256(value: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(value);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 export default function TransactionDetailPage({
   params,
@@ -103,7 +88,7 @@ export default function TransactionDetailPage({
           .order("uploaded_at", { ascending: false });
 
         if (receiptError) throw receiptError;
-        setReceipts(receiptData || []);
+        setReceipts((receiptData || []) as Receipt[]);
 
         const [{ data: categoryData, error: categoryError }, { data: paymentData, error: paymentError }] =
           await Promise.all([
@@ -120,8 +105,8 @@ export default function TransactionDetailPage({
 
         if (categoryError) throw categoryError;
         if (paymentError) throw paymentError;
-        setCategories(categoryData || []);
-        setPaymentMethods(paymentData || []);
+        setCategories((categoryData || []) as ExpenseCategory[]);
+        setPaymentMethods((paymentData || []) as PaymentMethod[]);
       } catch (err) {
         console.error("Failed to load transaction:", err);
         setError(err instanceof Error ? err.message : "Unknown error");
@@ -172,36 +157,25 @@ export default function TransactionDetailPage({
 
       setReceiptLinkError(null);
 
-      const entries = await Promise.all(
-        receipts.map(async (receipt) => {
-          try {
-            const response = await fetch(`/api/receipts/${receipt.id}/download`);
-            if (!response.ok) {
-              return [receipt.id, ""] as const;
-            }
+      try {
+        const response = await fetch(`/api/transactions/${params.id}/receipts-urls`);
+        if (!response.ok) {
+          throw new Error("署名付きURLの一括取得に失敗しました。");
+        }
+        const body = (await response.json()) as { urls: Record<string, string> };
+        setReceiptLinks(body.urls);
 
-            const body = (await response.json()) as { signedUrl?: string };
-            return [receipt.id, body.signedUrl || ""] as const;
-          } catch {
-            return [receipt.id, ""] as const;
-          }
-        })
-      );
-
-      const nextLinks: Record<string, string> = {};
-      for (const [id, url] of entries) {
-        if (url) nextLinks[id] = url;
+        if (Object.keys(body.urls).length === 0) {
+          setReceiptLinkError("表示可能な証憑が見つかりません。");
+        }
+      } catch (err) {
+        console.error("Batch URL generation failed:", err);
+        setReceiptLinkError("証憑の表示リンク生成に失敗しました。");
       }
-
-      if (Object.keys(nextLinks).length === 0) {
-        setReceiptLinkError("署名付きURLの生成に失敗しました。");
-      }
-
-      setReceiptLinks(nextLinks);
     }
 
     void updateReceiptLinks();
-  }, [receipts]);
+  }, [receipts, params.id]);
 
   async function handleUpload(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -265,10 +239,10 @@ export default function TransactionDetailPage({
         prev.map((receipt) =>
           receipt.id === receiptId
             ? {
-                ...receipt,
-                ocr_text: body.text,
-                ocr_confidence: body.confidence,
-              }
+              ...receipt,
+              ocr_text: body.text,
+              ocr_confidence: body.confidence,
+            }
             : receipt
         )
       );
@@ -354,24 +328,24 @@ export default function TransactionDetailPage({
       setTransaction((prev) =>
         prev
           ? {
-              ...prev,
-              occurred_on: editOccurredOn,
-              amount_yen: normalizedAmount,
-              description: editDescription.trim(),
-              payment_method_id: editPaymentMethodId,
-              vendor_raw: vendorValue,
-              vendor_norm: vendorNorm,
-              fingerprint,
-              transaction_business_info: {
-                transaction_id: params.id,
-                is_business: editIsBusiness,
-                business_ratio: ratio,
-                category_id: editCategoryId || null,
-                audit_note: editAuditNote.trim() || null,
-                judged_by: "gui",
-                judged_at: new Date().toISOString(),
-              },
-            }
+            ...prev,
+            occurred_on: editOccurredOn,
+            amount_yen: normalizedAmount,
+            description: editDescription.trim(),
+            payment_method_id: editPaymentMethodId,
+            vendor_raw: vendorValue,
+            vendor_norm: vendorNorm,
+            fingerprint,
+            transaction_business_info: {
+              transaction_id: params.id,
+              is_business: editIsBusiness,
+              business_ratio: ratio,
+              category_id: editCategoryId || null,
+              audit_note: editAuditNote.trim() || null,
+              judged_by: "gui",
+              judged_at: new Date().toISOString(),
+            },
+          }
           : prev
       );
       setSaveMessage("保存しました。");
@@ -522,11 +496,10 @@ export default function TransactionDetailPage({
                 <button
                   type="button"
                   onClick={() => setEditIsBusiness((prev) => !prev)}
-                  className={`w-full px-4 py-3 rounded-lg border text-sm font-medium transition-colors ${
-                    editIsBusiness
-                      ? "bg-green-100 text-green-800 border-green-200"
-                      : "bg-red-100 text-red-800 border-red-200"
-                  }`}
+                  className={`w-full px-4 py-3 rounded-lg border text-sm font-medium transition-colors ${editIsBusiness
+                    ? "bg-green-100 text-green-800 border-green-200"
+                    : "bg-red-100 text-red-800 border-red-200"
+                    }`}
                 >
                   {editIsBusiness ? "事業用" : "プライベート"}
                 </button>
@@ -682,11 +655,10 @@ export default function TransactionDetailPage({
                     </div>
                     <div className="flex items-center gap-3">
                       <span
-                        className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${
-                          receipt.ocr_text
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
+                        className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${receipt.ocr_text
+                          ? "bg-green-100 text-green-800"
+                          : "bg-gray-100 text-gray-800"
+                          }`}
                       >
                         {receipt.ocr_text ? "OCR済み" : "OCR未実行"}
                       </span>
