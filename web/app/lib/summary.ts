@@ -3,14 +3,15 @@ import { Transaction } from "./mock-data";
 export function buildSummary(transactions: Transaction[]) {
   const income = transactions
     .filter((tx) => tx.amountYen > 0)
-    .reduce((sum, tx) => sum + tx.amountYen, 0);
+    .reduce((sum: number, tx: Transaction) => sum + tx.amountYen, 0);
   const expenses = transactions
     .filter((tx) => tx.amountYen < 0)
-    .reduce((sum, tx) => sum + tx.amountYen, 0);
+    .reduce((sum: number, tx: Transaction) => sum + tx.amountYen, 0);
   const businessExpenses = transactions
     .filter((tx) => tx.amountYen < 0 && tx.isBusiness)
     .reduce(
-      (sum, tx) => sum + (tx.amountYen * (tx.businessRatio ?? 100)) / 100,
+      (sum: number, tx: Transaction) =>
+        sum + (tx.amountYen * (tx.businessRatio ?? 100)) / 100,
       0
     );
   const paymentMethodBreakdown = transactions

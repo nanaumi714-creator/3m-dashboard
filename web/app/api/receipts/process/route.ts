@@ -207,6 +207,7 @@ export async function POST(request: Request) {
                     business_ratio: resolvedIsBusiness ? resolvedRatio : 0,
                     category_id: resolvedCategoryId,
                     judged_by: "receipt_upload_v2",
+                    judged_at: new Date().toISOString(),
                     audit_note: "Receipt review confirmed (v2).",
                 });
 

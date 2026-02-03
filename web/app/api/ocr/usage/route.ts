@@ -22,7 +22,10 @@ export async function GET() {
       throw error;
     }
 
-    const used = (data || []).reduce((sum, row) => sum + (row.pages || 0), 0);
+    const used = (data || []).reduce(
+      (sum: number, row: { pages: number | null }) => sum + (row.pages || 0),
+      0
+    );
     const remaining = Math.max(MAX_MONTHLY_OCR_PAGES - used, 0);
 
     return NextResponse.json({

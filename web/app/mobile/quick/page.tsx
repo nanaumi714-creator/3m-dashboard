@@ -21,11 +21,26 @@ export default function MobileQuickEntryPage() {
         try {
             setLoading(true);
 
+            const { data: paymentMethod, error: paymentMethodError } = await supabase
+                .from("payment_methods")
+                .select("id")
+                .eq("is_active", true)
+                .order("name")
+                .limit(1)
+                .maybeSingle();
+
+            if (paymentMethodError) throw paymentMethodError;
+            if (!paymentMethod) {
+                throw new Error("支払い方法が見つかりません。先に支払い方法を登録してください。");
+            }
+
             const { error } = await supabase.from("transactions").insert({
                 occurred_on: new Date().toISOString().split("T")[0],
                 description: description,
-                amount_yen: parseInt(amount),
-                payment_method_id: null, // Will need to fetch default
+                amount_yen: -Math.abs(parseInt(amount, 10)),
+                payment_method_id: paymentMethod.id,
+                vendor_raw: description,
+                vendor_norm: description.toLowerCase().replace(/\s+/g, ""),
             });
 
             if (error) throw error;
@@ -53,7 +68,10 @@ export default function MobileQuickEntryPage() {
 
             // Create receipt record
             await supabase.from("receipts").insert({
-                storage_path: data.path,
+                storage_url: data.path,
+                original_filename: file.name,
+                content_type: file.type || null,
+                file_size_bytes: file.size,
             });
 
             alert("レシートをアップロードしました");

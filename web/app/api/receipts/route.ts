@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseServer } from "@/lib/supabase-server";
 import { runEdgeOcr } from "@/lib/ocr-edge";
-import { runGoogleVisionOcr } from "@/lib/google-vision";
+import { runGoogleVisionOcr } from "@/lib/ocr/google-vision";
 import { Database } from "@/lib/database.types";
 
 const MAX_MONTHLY_OCR_PAGES = Number(process.env.OCR_MONTHLY_LIMIT || "1000");
@@ -37,7 +37,10 @@ async function getMonthlyOcrUsage() {
     throw error;
   }
 
-  return (data || []).reduce((sum, row) => sum + (row.pages || 0), 0);
+  return (data || []).reduce(
+    (sum: number, row: { pages: number | null }) => sum + (row.pages || 0),
+    0
+  );
 }
 
 export async function POST(request: Request) {

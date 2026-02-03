@@ -9,6 +9,7 @@ import { normalizeVendor, sha256 } from "@/lib/utils/shared";
 type Receipt = Database["public"]["Tables"]["receipts"]["Row"];
 type ExpenseCategory = Database["public"]["Tables"]["expense_categories"]["Row"];
 type PaymentMethod = Database["public"]["Tables"]["payment_methods"]["Row"];
+type BusinessInfo = Database["public"]["Tables"]["transaction_business_info"]["Row"];
 type Transaction = Database["public"]["Tables"]["transactions"]["Row"] & {
   payment_methods?: PaymentMethod | null;
   transaction_business_info:
@@ -61,12 +62,19 @@ export default function TransactionDetailPage({
       try {
         const { data: transactionData, error: transactionError } = await supabase
           .from("transactions")
-          .select("*, transaction_business_info(*)")
+          .select("*")
           .eq("id", params.id)
           .single();
 
         if (transactionError) throw transactionError;
         const transactionRow = transactionData as Transaction;
+        const { data: businessInfoData, error: businessInfoError } =
+          await supabase
+            .from("transaction_business_info")
+            .select("*")
+            .eq("transaction_id", params.id)
+            .maybeSingle();
+        if (businessInfoError) throw businessInfoError;
         let paymentMethod: PaymentMethod | null = null;
         if (transactionRow.payment_method_id) {
           const { data: paymentMethodData, error: paymentMethodError } =
@@ -82,6 +90,7 @@ export default function TransactionDetailPage({
         setTransaction({
           ...transactionRow,
           payment_methods: paymentMethod,
+          transaction_business_info: businessInfoData ?? null,
         });
         setEditOccurredOn(transactionRow.occurred_on);
         setEditAmountYen(transactionRow.amount_yen.toString());
@@ -339,29 +348,31 @@ export default function TransactionDetailPage({
 
       if (upsertError) throw upsertError;
 
-      setTransaction((prev) =>
-        prev
+      setTransaction((prev) => {
+        if (!prev) return prev;
+        const nextBusinessInfo: BusinessInfo | null = prev.transaction_business_info
           ? {
-            ...prev,
-            occurred_on: editOccurredOn,
-            amount_yen: normalizedAmount,
-            description: editDescription.trim(),
-            payment_method_id: editPaymentMethodId,
-            vendor_raw: vendorValue,
-            vendor_norm: vendorNorm,
-            fingerprint,
-            transaction_business_info: {
-              transaction_id: params.id,
-              is_business: editIsBusiness,
-              business_ratio: ratio,
-              category_id: editCategoryId || null,
-              audit_note: editAuditNote.trim() || null,
-              judged_by: "gui",
-              judged_at: new Date().toISOString(),
-            },
+            ...prev.transaction_business_info,
+            is_business: editIsBusiness,
+            business_ratio: ratio,
+            category_id: editCategoryId || null,
+            audit_note: editAuditNote.trim() || null,
+            judged_by: "gui",
+            judged_at: new Date().toISOString(),
           }
-          : prev
-      );
+          : null;
+        return {
+          ...prev,
+          occurred_on: editOccurredOn,
+          amount_yen: normalizedAmount,
+          description: editDescription.trim(),
+          payment_method_id: editPaymentMethodId,
+          vendor_raw: vendorValue,
+          vendor_norm: vendorNorm,
+          fingerprint,
+          transaction_business_info: nextBusinessInfo,
+        };
+      });
       setSaveMessage("保存しました。");
     } catch (err) {
       console.error("Save error:", err);

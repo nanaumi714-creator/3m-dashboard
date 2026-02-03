@@ -16,7 +16,10 @@ async function getMonthlyOcrUsage() {
 
   if (error) throw error;
 
-  return (data || []).reduce((sum, row) => sum + (row.pages || 0), 0);
+  return (data || []).reduce(
+    (sum: number, row: { pages: number | null }) => sum + (row.pages || 0),
+    0
+  );
 }
 
 async function loadReceiptFile(storageUrl: string) {
