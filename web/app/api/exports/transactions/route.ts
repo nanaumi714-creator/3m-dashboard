@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase-server";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 import { Database } from "@/lib/database.types";
 
 type ExportFilters = {
@@ -41,9 +42,19 @@ function buildCsv(rows: Array<Record<string, string | number | null>>) {
 
 export async function POST(request: Request) {
   try {
+    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+    if (userError) throw userError;
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
+
     const filters = (await request.json()) as ExportFilters;
 
-    let q = supabaseServer
+    let q = supabase
       .from("transactions")
       .select(
         "*, payment_methods(*), transaction_business_info(*), receipts(ocr_text)"
@@ -94,12 +105,13 @@ export async function POST(request: Request) {
 
     const csv = buildCsv(exportRows);
 
-    const { data: history, error: historyError } = await supabaseServer
+    const { data: history, error: historyError } = await supabase
       .from("export_history")
       .insert({
         format: "csv",
         filters: filters,
         row_count: exportRows.length,
+        user_id: user.id,
       })
       .select("*")
       .single();

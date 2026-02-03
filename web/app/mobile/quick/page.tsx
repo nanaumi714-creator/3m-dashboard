@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import CameraCapture from "../components/CameraCapture";
+import CameraCapture from "../../(dashboard)/components/CameraCapture";
 
 export default function MobileQuickEntryPage() {
     const [amount, setAmount] = useState("");

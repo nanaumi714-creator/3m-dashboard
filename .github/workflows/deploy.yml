@@ -45,6 +45,7 @@ jobs:
   deploy-supabase:
     name: Deploy Supabase Migrations
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v3
       
@@ -52,6 +53,16 @@ jobs:
         uses: supabase/setup-cli@v1
         with:
           version: latest
+
+      - name: Validate Supabase project ref secret
+        run: |
+          if [ -z "${SUPABASE_PROJECT_REF}" ]; then
+            echo "ERROR: SUPABASE_PROJECT_REF secret is not set."
+            echo "Set it in repository secrets or restrict this job to pushes."
+            exit 1
+          fi
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       
       - name: Link to Supabase Project
         run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
