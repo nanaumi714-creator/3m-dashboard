@@ -7,10 +7,14 @@ import { supabase } from "@/lib/supabase";
 type Receipt = {
     id: string;
     transaction_id: string | null;
-    storage_path: string;
+    storage_url: string;
+    original_filename: string | null;
+    content_type: string | null;
+    file_size_bytes: number | null;
+    user_id: string | null;
     ocr_text: string | null;
     ocr_confidence: number | null;
-    created_at: string;
+    uploaded_at: string;
 };
 
 export default function ReceiptDetailPage() {
