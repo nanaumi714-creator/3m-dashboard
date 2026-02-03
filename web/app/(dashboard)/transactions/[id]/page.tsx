@@ -6,16 +6,15 @@ import { supabase } from "@/lib/supabase";
 import { Database } from "@/lib/database.types";
 import { normalizeVendor, sha256 } from "@/lib/utils/shared";
 
-type Transaction = Database["public"]["Tables"]["transactions"]["Row"] & {
-  payment_methods: Database["public"]["Tables"]["payment_methods"]["Row"] | null;
-  transaction_business_info:
-  | Database["public"]["Tables"]["transaction_business_info"]["Row"]
-  | null;
-};
-
 type Receipt = Database["public"]["Tables"]["receipts"]["Row"];
 type ExpenseCategory = Database["public"]["Tables"]["expense_categories"]["Row"];
 type PaymentMethod = Database["public"]["Tables"]["payment_methods"]["Row"];
+type Transaction = Database["public"]["Tables"]["transactions"]["Row"] & {
+  payment_methods?: PaymentMethod | null;
+  transaction_business_info:
+    | Database["public"]["Tables"]["transaction_business_info"]["Row"]
+    | null;
+};
 type OcrUsageSummary = {
   used: number;
   limit: number;
@@ -62,13 +61,28 @@ export default function TransactionDetailPage({
       try {
         const { data: transactionData, error: transactionError } = await supabase
           .from("transactions")
-          .select("*, payment_methods(*), transaction_business_info(*)")
+          .select("*, transaction_business_info(*)")
           .eq("id", params.id)
           .single();
 
         if (transactionError) throw transactionError;
-        setTransaction(transactionData as Transaction);
         const transactionRow = transactionData as Transaction;
+        let paymentMethod: PaymentMethod | null = null;
+        if (transactionRow.payment_method_id) {
+          const { data: paymentMethodData, error: paymentMethodError } =
+            await supabase
+              .from("payment_methods")
+              .select("*")
+              .eq("id", transactionRow.payment_method_id)
+              .maybeSingle();
+          if (paymentMethodError) throw paymentMethodError;
+          paymentMethod = paymentMethodData;
+        }
+
+        setTransaction({
+          ...transactionRow,
+          payment_methods: paymentMethod,
+        });
         setEditOccurredOn(transactionRow.occurred_on);
         setEditAmountYen(transactionRow.amount_yen.toString());
         setEditDescription(transactionRow.description);

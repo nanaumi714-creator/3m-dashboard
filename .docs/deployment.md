@@ -1,8 +1,23 @@
-# デプロイメントガイド
+# Deployment Guide (Phase 4)
 
-## Vercelデプロイ手順
+This project is now in Phase 4. Cloud deployment is supported and recommended.
 
-### 初回セットアップ
+## Architecture
+
+- Frontend: Vercel (Next.js App Router)
+- Backend: Supabase Cloud (PostgreSQL + Auth + Storage)
+- Optional: Vercel Cron for scheduled jobs (Gmail sync, backups)
+
+## 1. Supabase Cloud Setup
+
+1. Create a Supabase project.
+2. Choose region (Tokyo `ap-northeast-1` recommended).
+3. Note these values from the Supabase dashboard: Project URL, Anon public key, Service role key.
+4. Apply schema. If using local migrations: `supabase link` then `supabase db push`. If migrating from local: use `.docs/migration.md` or `scripts/enhanced_migration.py`.
+
+## 2. Vercel Setup
+
+### Install and link
 
 ```bash
 cd web
@@ -11,77 +26,51 @@ vercel login
 vercel
 ```
 
-### 環境変数設定
+### Environment variables (Vercel Dashboard)
 
-Vercel Dashboard > Settings > Environment Variables:
+Required:
 
-```
-NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJxxx
-OCR_MONTHLY_LIMIT=100
-GOOGLE_APPLICATION_CREDENTIALS=/var/task/credentials.json
-```
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
 
-### デプロイ
+Optional:
+
+- `OCR_MONTHLY_LIMIT`
+- `GOOGLE_VISION_API_KEY`
+- `GOOGLE_APPLICATION_CREDENTIALS` (if using a JSON file in runtime)
+- `GMAIL_CLIENT_ID`
+- `GMAIL_CLIENT_SECRET`
+- `GMAIL_REFRESH_TOKEN`
+
+### Deploy
 
 ```bash
 vercel --prod
 ```
 
----
+## 3. Cron Jobs (Optional)
 
-## Supabase Cloudセットアップ
+If you want scheduled jobs:
 
-### プロジェクト作成
+- `web/app/api/cron/backup/route.ts`
+- `web/app/api/cron/gmail-sync/route.ts`
 
-1. https://supabase.com/ でプロジェクト作成
-2. リージョン: Tokyo (ap-northeast-1)
-3. Database Password設定
+Configure `vercel.json` or the Vercel dashboard cron schedule.
 
-### マイグレーション
+## 4. Post-Deploy Checks
 
-```bash
-supabase link --project-ref YOUR_REF
-supabase db push
-```
+- Verify login works (Supabase Auth).
+- Verify RLS policies are enabled and correct.
+- Test uploads (Supabase Storage).
+- Run a simple query from the UI to ensure connectivity.
 
----
+## CI/CD (Optional)
 
-## 自動デプロイ (CI/CD)
-
-GitHub Actionsで自動化済み:
-- `main` ブランチへのpush時に自動デプロイ
-- `.github/workflows/deploy.yml` 参照
-
-### 必要なSecrets
+If using GitHub Actions, ensure these secrets exist:
 
 - `VERCEL_TOKEN`
 - `VERCEL_ORG_ID`
 - `VERCEL_PROJECT_ID`
 - `SUPABASE_ACCESS_TOKEN`
 - `SUPABASE_PROJECT_REF`
-
----
-
-## トラブルシューティング
-
-### ビルドエラー
-
-```
-Error: Module not found
-```
-
-**対処法**: `package-lock.json` を削除して再インストール
-
-```bash
-rm package-lock.json
-npm install
-```
-
-### 環境変数が反映されない
-
-**対処法**: Vercelで環境変数を変更後、再デプロイが必要
-
-```bash
-vercel --prod --force
-```
