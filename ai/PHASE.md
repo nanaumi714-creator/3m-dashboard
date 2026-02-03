@@ -1,8 +1,8 @@
 # Phase Gate - Current Constraints and Future Roadmap
 
-## Current Phase: **1** (MVP - Local-only, Zero-cost)
+## Current Phase: **3** (Advanced Management)
 
-**Last Updated**: [Update this when changing phases]
+**Last Updated**: January 24, 2026
 
 ---
 
@@ -70,14 +70,13 @@
 ## Phase 3: Advanced Management (When needed)
 
 ### What Unlocks
-- ✅ **OCR integration**: Google Vision API, AWS Textract (cost allowed)
+- ✅ **OCR integration**: Google Vision API (cost allowed)
 - ✅ **Export**: CSV, Excel formats
-- ✅ **Gmail sync**: Automatic receipt download
-- ✅ **Advanced search**: Full-text, complex filters
+- ✅ **Advanced search**: Full-text, complex filters (Japanese support)
 
 ### Cost Acceptable
 - ✅ OCR API usage (within budget)
-- ✅ Gmail API quota
+
 
 ### Still Forbidden
 - ❌ Cloud deployment
@@ -88,7 +87,10 @@
 - `export_templates`
 - `export_history`
 - `saved_searches`
-- `gmail_sync_configs`
+- `ocr_usage_logs`
+
+### Deferred to Phase 4
+- Gmail sync (OAuth + background fetch)
 
 ---
 
@@ -100,6 +102,7 @@
 - ✅ **RLS**: Row Level Security
 - ✅ **Mobile UI**: Responsive design, camera upload
 - ✅ **Remote input**: Manual entry from anywhere
+- ✅ **Gmail sync**: Automatic receipt download
 
 ### Cost Acceptable
 - ✅ Vercel hosting
@@ -156,7 +159,7 @@
 - [ ] Phase 2 acceptance criteria all met
 - [ ] Receipt management is bottleneck
 - [ ] Need to export data for external use
-- [ ] Budget approved for OCR/Gmail API
+- [ ] Budget approved for OCR API
 - [ ] Update `PHASE.md` current phase to 3
 - [ ] Set up API credentials
 

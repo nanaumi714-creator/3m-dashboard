@@ -1,0 +1,147 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Mobile-first responsive design */
+
+/* Base styles */
+@layer base {
+  html {
+    @apply text-base;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+}
+
+/* Mobile optimizations */
+@layer components {
+  /* Touch-friendly buttons */
+  .btn-mobile {
+    @apply min-h-[44px] min-w-[44px] px-4 py-2 rounded-lg font-medium;
+    @apply active:scale-95 transition-transform;
+  }
+
+  /* Responsive containers */
+  .container-mobile {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Mobile-friendly forms */
+  .input-mobile {
+    @apply w-full px-4 py-3 text-base rounded-lg border border-gray-300;
+    @apply focus:outline-none focus:ring-2 focus:ring-blue-500;
+    @apply appearance-none; /* Remove iOS default styling */
+  }
+
+  /* Mobile navigation */
+  .nav-mobile {
+    @apply fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200;
+    @apply flex justify-around items-center h-16 z-50;
+    @apply sm:hidden; /* Hide on larger screens */
+  }
+
+  /* Swipeable card */
+  .card-swipeable {
+    @apply touch-pan-x;
+    @apply transition-transform duration-200;
+  }
+
+  /* Responsive table */
+  .table-responsive {
+    @apply block overflow-x-auto;
+    @apply -mx-4 sm:mx-0;
+  }
+
+  .table-responsive table {
+    @apply w-full min-w-max;
+  }
+
+  /* Mobile modal */
+  .modal-mobile {
+    @apply fixed inset-0 z-50;
+    @apply flex items-end sm:items-center justify-center;
+  }
+
+  .modal-content-mobile {
+    @apply bg-white rounded-t-2xl sm:rounded-xl;
+    @apply w-full sm:max-w-lg max-h-[90vh];
+    @apply overflow-y-auto;
+  }
+}
+
+/* Responsive utilities */
+@layer utilities {
+  /* Safe area for notched devices */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Scrollable with momentum */
+  .scroll-momentum {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Hide scrollbar */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Breakpoint-specific adjustments */
+@media (max-width: 640px) {
+  /* Larger touch targets on mobile */
+  button, a {
+    @apply min-h-[44px];
+  }
+
+  /* Adjust spacing for mobile */
+  h1 {
+    @apply text-2xl;
+  }
+
+  h2 {
+    @apply text-xl;
+  }
+
+  /* Stack columns on mobile */
+  .grid-cols-2,
+  .grid-cols-3,
+  .grid-cols-4 {
+    @apply grid-cols-1;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .grid-cols-3,
+  .grid-cols-4 {
+    @apply grid-cols-2;
+  }
+}
+
+/* Dark mode support (optional) */
+@media (prefers-color-scheme: dark) {
+  /* Add dark mode styles if needed */
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

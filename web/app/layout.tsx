@@ -1,5 +1,6 @@
-import "./styles/globals.css";
 import Link from "next/link";
+import DevAutoLogin from "./_components/DevAutoLogin";
+import "./styles/globals.css";
 
 export const metadata = {
   title: "3m Dashboard",
@@ -13,21 +14,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <body>
-        <main>
-          <header>
-            <div>
-              <h1>3m Dashboard</h1>
-              <p className="notice">ローカル運用向けの取引可視化MVP</p>
-            </div>
-            <nav>
-              <Link href="/" className="active">
-                Dashboard
-              </Link>
-              <Link href="/transactions">Transactions</Link>
-              <Link href="/triage">Triage Queue</Link>
-            </nav>
-          </header>
+      <body className="min-h-screen bg-gray-50 text-gray-900">
+        <main className="min-h-screen">
+          <DevAutoLogin />
           {children}
         </main>
       </body>

@@ -59,7 +59,7 @@ create table if not exists transaction_business_info (
   transaction_id uuid primary key references transactions(id) on delete cascade,
   is_business boolean not null,
   business_ratio int not null default 100 check (business_ratio between 0 and 100),
-  category_id uuid, -- Phase 2: add FK to expense_categories
+  category_id uuid, -- Phase 2: FK to expense_categories (added below)
   judged_at timestamptz not null default now(),
   judged_by text, -- user who made the judgment
   audit_note text
@@ -99,3 +99,338 @@ insert into payment_methods (name, type) values
   ('現金', 'cash'),
   ('銀行振込', 'bank')
 on conflict do nothing;
+
+-- ============================================================================
+-- Phase 2: Vendor Management + Categories
+-- ============================================================================
+
+-- expense_categories: business expense categories for better organization
+create table if not exists expense_categories (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  description text,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+-- vendors: master table for vendor normalization
+create table if not exists vendors (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique, -- canonical vendor name
+  description text,
+  default_category_id uuid references expense_categories(id),
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- vendor_aliases: multiple names that map to the same vendor
+create table if not exists vendor_aliases (
+  id uuid primary key default gen_random_uuid(),
+  vendor_id uuid not null references vendors(id) on delete cascade,
+  alias text not null,
+  confidence_score numeric(3,2) default 1.0, -- 0.0-1.0, for fuzzy matching
+  created_at timestamptz not null default now(),
+  
+  constraint chk_vendor_aliases_confidence check (confidence_score between 0.0 and 1.0)
+);
+
+create unique index if not exists ux_vendor_aliases_alias on vendor_aliases(lower(trim(alias)));
+create index if not exists idx_vendor_aliases_vendor_id on vendor_aliases(vendor_id);
+
+-- vendor_rules: automation rules for vendor-based judgment
+create table if not exists vendor_rules (
+  id uuid primary key default gen_random_uuid(),
+  vendor_id uuid not null references vendors(id) on delete cascade,
+  is_business boolean not null,
+  business_ratio int not null default 100 check (business_ratio between 0 and 100),
+  category_id uuid references expense_categories(id),
+  rule_priority int not null default 100, -- lower number = higher priority
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  created_by text,
+  note text
+);
+
+create index if not exists idx_vendor_rules_vendor_id on vendor_rules(vendor_id);
+create index if not exists idx_vendor_rules_priority on vendor_rules(rule_priority);
+
+-- Add vendor_id to transactions table for Phase 2 vendor linking
+alter table transactions 
+add column if not exists vendor_id uuid references vendors(id);
+
+create index if not exists idx_transactions_vendor_id on transactions(vendor_id);
+
+-- Add FK constraint to transaction_business_info for categories
+alter table transaction_business_info 
+add constraint fk_transaction_business_info_category 
+foreign key (category_id) references expense_categories(id);
+
+-- Trigger: auto-update updated_at on vendors
+drop trigger if exists trg_vendors_set_updated_at on vendors;
+create trigger trg_vendors_set_updated_at
+before update on vendors
+for each row execute function set_updated_at();
+
+-- Seed data: basic expense categories
+insert into expense_categories (name, description) values
+  ('事務用品', 'Office supplies, stationery'),
+  ('通信費', 'Internet, phone, hosting'),
+  ('交通費', 'Transportation, travel'),
+  ('会議費', 'Meeting expenses, meals'),
+  ('研修費', 'Training, books, courses'),
+  ('その他', 'Other business expenses')
+on conflict (name) do nothing;
+
+-- Comments for Phase 2 tables
+comment on table expense_categories is 'Phase 2: Business expense categories for better organization';
+comment on table vendors is 'Phase 2: Master table for vendor normalization and rules';
+comment on table vendor_aliases is 'Phase 2: Multiple names that map to the same vendor';
+comment on table vendor_rules is 'Phase 2: Automation rules for vendor-based expense judgment';
+
+-- ============================================================================
+-- Phase 3: OCR + Export + Advanced Search
+-- ============================================================================
+
+create extension if not exists pg_trgm;
+
+-- export_templates: saved export presets
+create table if not exists export_templates (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  format text not null, -- csv/excel
+  columns jsonb not null, -- output columns definition
+  filters jsonb, -- default filters
+  created_at timestamptz not null default now(),
+
+  constraint chk_export_templates_format check (format in ('csv', 'excel'))
+);
+
+comment on table export_templates is 'Phase 3: Saved export presets for CSV/Excel output.';
+comment on column export_templates.name is 'Human-friendly template name.';
+comment on column export_templates.format is 'Export format: csv or excel.';
+comment on column export_templates.columns is 'JSON definition of selected columns and ordering.';
+comment on column export_templates.filters is 'JSON definition of default filters.';
+comment on column export_templates.created_at is 'Timestamp when the template was created.';
+
+-- export_history: audit trail for exports
+create table if not exists export_history (
+  id uuid primary key default gen_random_uuid(),
+  template_id uuid references export_templates(id) on delete set null,
+  format text not null, -- csv/excel
+  filters jsonb, -- filters used at export time
+  row_count int not null default 0,
+  created_at timestamptz not null default now(),
+
+  constraint chk_export_history_format check (format in ('csv', 'excel')),
+  constraint chk_export_history_row_count check (row_count >= 0)
+);
+
+comment on table export_history is 'Phase 3: Audit trail of export executions.';
+comment on column export_history.template_id is 'Optional link to the export template used.';
+comment on column export_history.format is 'Export format at runtime.';
+comment on column export_history.filters is 'Filters applied when exporting.';
+comment on column export_history.row_count is 'Number of rows included in the export.';
+comment on column export_history.created_at is 'Timestamp when the export was generated.';
+
+create index if not exists idx_export_history_created_at on export_history(created_at);
+
+-- saved_searches: reusable query presets
+create table if not exists saved_searches (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  query text, -- full-text search input
+  filters jsonb, -- structured filters
+  created_at timestamptz not null default now()
+);
+
+comment on table saved_searches is 'Phase 3: Saved search presets for advanced filtering.';
+comment on column saved_searches.name is 'Human-friendly saved search name.';
+comment on column saved_searches.query is 'Full-text search input.';
+comment on column saved_searches.filters is 'Structured filter definition (JSON).';
+comment on column saved_searches.created_at is 'Timestamp when the saved search was created.';
+
+-- ocr_usage_logs: OCR usage tracking for monthly cap enforcement
+create table if not exists ocr_usage_logs (
+  id uuid primary key default gen_random_uuid(),
+  receipt_id uuid references receipts(id) on delete set null,
+  provider text not null default 'google_vision',
+  status text not null, -- success/failed
+  pages int not null default 1,
+  error_message text,
+  request_at timestamptz not null default now(),
+
+  constraint chk_ocr_usage_logs_pages check (pages > 0),
+  constraint chk_ocr_usage_logs_status check (status in ('success', 'failed'))
+);
+
+comment on table ocr_usage_logs is 'Phase 3: OCR usage tracking for cost monitoring.';
+comment on column ocr_usage_logs.receipt_id is 'Receipt processed by OCR (nullable for manual runs).';
+comment on column ocr_usage_logs.provider is 'OCR provider identifier.';
+comment on column ocr_usage_logs.status is 'OCR result status: success or failed.';
+comment on column ocr_usage_logs.pages is 'Billable pages for OCR request.';
+comment on column ocr_usage_logs.error_message is 'Error details when OCR fails.';
+comment on column ocr_usage_logs.request_at is 'Timestamp when OCR was requested.';
+
+create index if not exists idx_ocr_usage_logs_request_at on ocr_usage_logs(request_at);
+
+-- Search indexes for pg_bigm
+create index if not exists idx_transactions_description_trgm
+  on transactions using gin (description gin_trgm_ops);
+
+create index if not exists idx_transactions_vendor_raw_trgm
+  on transactions using gin (vendor_raw gin_trgm_ops);
+
+create index if not exists idx_receipts_ocr_text_trgm
+  on receipts using gin (ocr_text gin_trgm_ops);
+
+comment on index idx_transactions_description_trgm is 'Phase 3: pg_trgm index for description searches.';
+comment on index idx_transactions_vendor_raw_trgm is 'Phase 3: pg_trgm index for vendor_raw searches.';
+-- ============================================================================
+-- Phase 4: Security & Multi-tenancy (RLS)
+-- ============================================================================
+
+-- 1. Add user_id to core tables
+alter table transactions add column if not exists user_id uuid references auth.users(id);
+alter table payment_methods add column if not exists user_id uuid references auth.users(id);
+alter table import_sources add column if not exists user_id uuid references auth.users(id);
+alter table vendors add column if not exists user_id uuid references auth.users(id);
+alter table expense_categories add column if not exists user_id uuid references auth.users(id);
+alter table receipts add column if not exists user_id uuid references auth.users(id);
+alter table saved_searches add column if not exists user_id uuid references auth.users(id);
+alter table export_history add column if not exists user_id uuid references auth.users(id);
+
+-- 2. Enable RLS
+alter table transactions enable row level security;
+alter table payment_methods enable row level security;
+alter table import_sources enable row level security;
+alter table vendors enable row level security;
+alter table expense_categories enable row level security;
+alter table receipts enable row level security;
+alter table saved_searches enable row level security;
+alter table export_history enable row level security;
+-- vendor_rules, vendor_aliases, ocr_usage_logs should also be secured via their parents or directly
+alter table vendor_rules enable row level security;
+alter table vendor_aliases enable row level security;
+alter table transaction_business_info enable row level security;
+
+-- 3. Define Policies (Simple "Own Data" policy)
+
+-- Transactions
+create policy "Users can view their own transactions" on transactions
+  for select using (auth.uid() = user_id);
+create policy "Users can insert their own transactions" on transactions
+  for insert with check (auth.uid() = user_id);
+create policy "Users can update their own transactions" on transactions
+  for update using (auth.uid() = user_id);
+create policy "Users can delete their own transactions" on transactions
+  for delete using (auth.uid() = user_id);
+
+-- Payment Methods (Allow read system defaults where user_id is null?)
+create policy "Users can view own or system payment methods" on payment_methods
+  for select using (auth.uid() = user_id or user_id is null);
+create policy "Users can manage own payment methods" on payment_methods
+  for all using (auth.uid() = user_id);
+
+-- Import Sources
+create policy "Users can manage own imports" on import_sources
+  for all using (auth.uid() = user_id);
+
+-- Vendors (Global read? Or private? Let's assume private for Phase 4 or Global Read/Private Write)
+-- For this app, let's make it private per user to be safe.
+create policy "Users can manage own vendors" on vendors
+  for all using (auth.uid() = user_id);
+
+-- Vendor Rules, Aliases (Inherit from Vendor or direct user_id? Direct easier if we added it, but valid via join too)
+-- For simplicity, let's rely on app setting user_id or assume privacy.
+-- Actually we didn't add user_id to vendor_rules. access via vendor?
+-- RLS using join:
+create policy "Users can manage own vendor rules" on vendor_rules
+  for all using (
+    exists (select 1 from vendors v where v.id = vendor_rules.vendor_id and v.user_id = auth.uid())
+  );
+  
+create policy "Users can manage own vendor aliases" on vendor_aliases
+  for all using (
+    exists (select 1 from vendors v where v.id = vendor_aliases.vendor_id and v.user_id = auth.uid())
+  );
+
+-- Transaction Business Info (Inherit from transaction)
+create policy "Users can manage own business info" on transaction_business_info
+  for all using (
+    exists (select 1 from transactions t where t.id = transaction_business_info.transaction_id and t.user_id = auth.uid())
+  );
+
+-- Receipts
+create policy "Users can manage own receipts" on receipts
+  for all using (auth.uid() = user_id);
+
+-- Expense Categories (System defaults + user custom)
+create policy "Users can view own or system categories" on expense_categories
+  for select using (auth.uid() = user_id or user_id is null);
+create policy "Users can manage own categories" on expense_categories
+  for all using (auth.uid() = user_id);
+
+-- ============================================================================
+-- Phase 2.5: Multiple CSV Format Support
+-- ============================================================================
+
+-- import_configs: カスタムCSV形式の定義
+create table if not exists import_configs (
+  id uuid primary key default gen_random_uuid(),
+  name text not null, -- 設定名（例: "三菱UFJ銀行"）
+  source_type text not null, -- csv_bank/csv_dpay/csv_custom
+  column_mapping jsonb not null, -- カラムマッピング定義
+  parser_options jsonb, -- パーサー固有オプション
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  
+  constraint chk_import_configs_source_type check (source_type in ('csv_card', 'csv_bank', 'csv_dpay', 'csv_custom'))
+);
+
+comment on table import_configs is 'Phase 2: Custom CSV format configurations';
+comment on column import_configs.column_mapping is 'JSON mapping of CSV columns to transaction fields';
+comment on column import_configs.parser_options is 'Parser-specific options like date format, encoding, etc';
+
+-- Trigger: auto-update updated_at on import_configs
+drop trigger if exists trg_import_configs_set_updated_at on import_configs;
+create trigger trg_import_configs_set_updated_at
+before update on import_configs
+for each row execute function set_updated_at();
+
+-- Seed data: 基本的なインポート設定
+insert into import_configs (name, source_type, column_mapping, parser_options) values
+  ('クレジットカード標準', '
+
+csv_card', 
+   '{"occurred_on": "transaction_date", "amount_yen": "amount", "description": "memo", "vendor_raw": "merchant"}',
+   '{"date_format": "YYYY-MM-DD", "encoding": "utf-8"}'),
+  ('銀行口座明細', 'csv_bank', 
+   '{"occurred_on": "取引日", "amount_yen": "お支払金額", "description": "摘要"}',
+   '{"date_format": "YYYY/MM/DD", "encoding": "shift_jis", "skip_rows": 1}'),
+  ('d払い明細', 'csv_dpay', 
+   '{"occurred_on": "ご利用日", "amount_yen": "ご利用金額", "description": "ご利用先"}',
+   '{"date_format": "YYYY/MM/DD", "encoding": "shift_jis"}')
+on conflict do nothing;
+
+-- ============================================================================
+-- Helper Functions
+-- ============================================================================
+
+-- Helper function: find duplicate transactions
+create or replace function find_duplicate_transactions()
+returns setof transactions
+language sql
+as $$
+  select t.*
+  from transactions t
+  where fingerprint in (
+    select fingerprint
+    from transactions
+    group by fingerprint
+    having count(*) > 1
+  )
+  order by fingerprint, occurred_on;
+$$;
+

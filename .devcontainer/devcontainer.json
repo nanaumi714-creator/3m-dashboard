@@ -1,0 +1,51 @@
+{
+    "name": "3M Dashboard",
+    "dockerComposeFile": "../docker-compose.yml",
+    "service": "web",
+    "workspaceFolder": "/app",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "dbaeumer.vscode-eslint",
+                "esbenp.prettier-vscode",
+                "bradlc.vscode-tailwindcss",
+                "ms-python.python"
+            ],
+            "settings": {
+                "editor.formatOnSave": true,
+                "editor.defaultFormatter": "esbenp.prettier-vscode",
+                "[python]": {
+                    "editor.defaultFormatter": "ms-python.black-formatter"
+                },
+                "typescript.tsdk": "node_modules/typescript/lib",
+                "eslint.validate": [
+                    "javascript",
+                    "javascriptreact",
+                    "typescript",
+                    "typescriptreact"
+                ]
+            }
+        }
+    },
+    "forwardPorts": [
+        3000,
+        54321,
+        54323
+    ],
+    "portsAttributes": {
+        "3000": {
+            "label": "Next.js",
+            "onAutoForward": "notify"
+        },
+        "54321": {
+            "label": "Supabase API",
+            "onAutoForward": "silent"
+        },
+        "54323": {
+            "label": "Supabase Studio",
+            "onAutoForward": "silent"
+        }
+    },
+    "postCreateCommand": "cd web && npm install && cd ../importer && pip install -r requirements.txt",
+    "remoteUser": "node"
+}
