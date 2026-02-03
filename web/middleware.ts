@@ -1,15 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
-
 export async function middleware(request: NextRequest) {
   const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req: request, res });
-
-  // Refresh session if expired
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const authCookie = request.cookies
+    .getAll()
+    .find((cookie) => cookie.name.endsWith("-auth-token"));
+  const hasSession = Boolean(authCookie?.value);
 
   // Protect dashboard routes
   if (request.nextUrl.pathname.startsWith("/dashboard") ||
@@ -22,7 +18,7 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/gmail") ||
     request.nextUrl.pathname.startsWith("/duplicates")) {
 
-    if (!session) {
+    if (!hasSession) {
       // Check for auth bypass in local development
       if (process.env.NEXT_PUBLIC_DISABLE_AUTH === "true") {
         return res;
@@ -36,7 +32,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Redirect authenticated users away from auth pages
-  if (session && (
+  if (hasSession && (
     request.nextUrl.pathname === "/login" ||
     request.nextUrl.pathname === "/signup"
   )) {

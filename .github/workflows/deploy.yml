@@ -29,9 +29,6 @@ jobs:
       - name: Build
         working-directory: ./web
         run: npm run build
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
@@ -41,35 +38,3 @@ jobs:
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           working-directory: ./web
           vercel-args: '--prod'
-
-  deploy-supabase:
-    name: Deploy Supabase Migrations
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      - name: Validate Supabase project ref secret
-        run: |
-          if [ -z "${SUPABASE_PROJECT_REF}" ]; then
-            echo "ERROR: SUPABASE_PROJECT_REF secret is not set."
-            echo "Set it in repository secrets or restrict this job to pushes."
-            exit 1
-          fi
-        env:
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-      
-      - name: Link to Supabase Project
-        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      
-      - name: Run migrations
-        run: supabase db push
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
