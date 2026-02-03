@@ -19,3 +19,9 @@ export const supabaseServer = createClient<Database>(
     auth: { persistSession: false, autoRefreshToken: false },
   }
 );
+
+export function createServerClient() {
+  return createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
