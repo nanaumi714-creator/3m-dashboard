@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import path from "path";
 import { promises as fs } from "fs";
 import crypto from "crypto";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
+import { createServerClient } from "@/lib/supabase-server";
+import { Database } from "@/lib/database.types";
 import { runGoogleVisionOcr } from "@/lib/ocr/google-vision";
 import { extractReceiptFields } from "@/lib/receipt-extract";
 
@@ -37,14 +37,29 @@ async function getMonthlyOcrUsage(supabase: any, userId: string) {
   return (data || []).reduce((sum, row) => sum + (row.pages || 0), 0);
 }
 
+function getAccessToken(request: Request) {
+  const authHeader = request.headers.get("authorization") || "";
+  if (!authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+  return authHeader.slice("Bearer ".length).trim() || null;
+}
+
 export async function POST(request: Request) {
-  let supabase = createRouteHandlerClient({ cookies });
+  let supabase = createServerClient();
   let userId: string | null = null;
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const accessToken = getAccessToken(request);
+  const { data: authData, error: authError } = accessToken
+    ? await supabase.auth.getUser(accessToken)
+    : { data: { user: null }, error: null };
 
-  if (user) {
-    userId = user.id;
+  if (authError) {
+    console.error("Auth error:", authError);
+  }
+
+  if (authData.user) {
+    userId = authData.user.id;
   } else if (process.env.NEXT_PUBLIC_DISABLE_AUTH === "true") {
     // Fallback for local development without auth
     console.warn("Auth disabled: Using service role for receipt upload.");
@@ -53,9 +68,9 @@ export async function POST(request: Request) {
 
     if (serviceRoleKey) {
       const { createClient } = await import("@supabase/supabase-js");
-      supabase = createClient(supabaseUrl, serviceRoleKey, {
+      supabase = createClient<Database>(supabaseUrl, serviceRoleKey, {
         auth: { persistSession: false, autoRefreshToken: false },
-      }) as any;
+      });
       // Use the seed.sql dev user ID or a fallback
       userId = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     } else {

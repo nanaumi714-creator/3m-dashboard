@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
 import { Database } from "@/lib/database.types";
+import { createServerClient } from "@/lib/supabase-server";
 
 type ExportFilters = {
   query?: string;
@@ -42,13 +41,16 @@ function buildCsv(rows: Array<Record<string, string | number | null>>) {
 
 export async function POST(request: Request) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    const supabase = createServerClient();
+    const authHeader = request.headers.get("authorization") || "";
+    const accessToken = authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length).trim()
+      : null;
+    const { data: authData, error: userError } = accessToken
+      ? await supabase.auth.getUser(accessToken)
+      : { data: { user: null }, error: null };
     if (userError) throw userError;
-    if (!user) {
+    if (!authData.user) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
@@ -111,7 +113,7 @@ export async function POST(request: Request) {
         format: "csv",
         filters: filters,
         row_count: exportRows.length,
-        user_id: user.id,
+        user_id: authData.user.id,
       })
       .select("*")
       .single();

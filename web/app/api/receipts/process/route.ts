@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import path from "path";
 import { promises as fs } from "fs";
 import crypto from "crypto";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
 import { findVendorSuggestion } from "@/lib/vendor-lookup";
+import { createServerClient } from "@/lib/supabase-server";
+import { Database } from "@/lib/database.types";
 
 const SOURCE_TYPE = "receipt_upload";
 
@@ -51,22 +51,37 @@ function buildFingerprint(
         .digest("hex");
 }
 
-async function getSupabaseClient() {
-    let supabase = createRouteHandlerClient({ cookies });
-    let userId: string | null = null;
-    const { data: { user } } = await supabase.auth.getUser();
+function getAccessToken(request: Request) {
+    const authHeader = request.headers.get("authorization") || "";
+    if (!authHeader.startsWith("Bearer ")) {
+        return null;
+    }
+    return authHeader.slice("Bearer ".length).trim() || null;
+}
 
-    if (user) {
-        userId = user.id;
+async function getSupabaseClient(request: Request) {
+    let supabase = createServerClient();
+    let userId: string | null = null;
+    const accessToken = getAccessToken(request);
+    const { data: authData, error: authError } = accessToken
+        ? await supabase.auth.getUser(accessToken)
+        : { data: { user: null }, error: null };
+
+    if (authError) {
+        console.error("Auth error:", authError);
+    }
+
+    if (authData.user) {
+        userId = authData.user.id;
     } else if (process.env.NEXT_PUBLIC_DISABLE_AUTH === "true") {
         console.warn("Auth disabled: Using service role for receipt process.");
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
         if (serviceRoleKey) {
             const { createClient } = await import("@supabase/supabase-js");
-            supabase = createClient(supabaseUrl, serviceRoleKey, {
+            supabase = createClient<Database>(supabaseUrl, serviceRoleKey, {
                 auth: { persistSession: false, autoRefreshToken: false },
-            }) as any;
+            });
             userId = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"; // Fallback user
         }
     }
@@ -89,7 +104,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "transactionData is required." }, { status: 400 });
         }
 
-        const { supabase, userId } = await getSupabaseClient();
+        const { supabase, userId } = await getSupabaseClient(request);
         if (!userId) {
             return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
         }
