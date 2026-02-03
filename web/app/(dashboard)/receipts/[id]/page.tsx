@@ -15,22 +15,25 @@ type Receipt = {
 
 export default function ReceiptDetailPage() {
     const router = useRouter();
-    const params = useParams();
+    const params = useParams<{ id: string }>();
+    const receiptId = typeof params.id === "string" ? params.id : "";
     const [receipt, setReceipt] = useState<Receipt | null>(null);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState(false);
     const [editedText, setEditedText] = useState("");
 
     useEffect(() => {
+        if (!receiptId) return;
         loadReceipt();
-    }, [params.id]);
+    }, [receiptId]);
 
     async function loadReceipt() {
         try {
+            if (!receiptId) return;
             const { data, error } = await supabase
                 .from("receipts")
                 .select("*")
-                .eq("id", params.id)
+                .eq("id", receiptId)
                 .single();
 
             if (error) throw error;
@@ -45,10 +48,11 @@ export default function ReceiptDetailPage() {
 
     async function handleSave() {
         try {
+            if (!receiptId) return;
             const { error } = await supabase
                 .from("receipts")
                 .update({ ocr_text: editedText })
-                .eq("id", params.id);
+                .eq("id", receiptId);
 
             if (error) throw error;
             setEditing(false);
