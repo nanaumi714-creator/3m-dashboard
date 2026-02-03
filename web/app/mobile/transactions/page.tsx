@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import SwipeableItem from "../components/SwipeableItem";
+import SwipeableItem from "../../(dashboard)/components/SwipeableItem";
 
 type Transaction = {
     id: string;
