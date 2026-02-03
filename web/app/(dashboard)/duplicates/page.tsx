@@ -30,7 +30,7 @@ export default function DuplicatesPage() {
 
             // Group by fingerprint
             const groups: Record<string, Transaction[]> = {};
-            (data || []).forEach((tx: Transaction) => {
+            (Array.isArray(data) ? data : []).forEach((tx: Transaction) => {
                 if (!groups[tx.fingerprint]) {
                     groups[tx.fingerprint] = [];
                 }
