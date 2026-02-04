@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/cron/gmail-sync
  * 

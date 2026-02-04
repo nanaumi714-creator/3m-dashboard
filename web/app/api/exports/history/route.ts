@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase-server";
+import { createServerClient } from "@/lib/supabase-server";
 
 export async function GET(request: Request) {
     try {
-        const { data, error } = await supabaseServer
+        const supabase = createServerClient();
+        const { data, error } = await supabase
             .from("export_history")
             .select("*, export_templates(name)")
             .order("created_at", { ascending: false });

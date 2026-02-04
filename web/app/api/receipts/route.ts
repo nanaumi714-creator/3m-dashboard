@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
-import { supabaseServer } from "@/lib/supabase-server";
+import { createServerClient } from "@/lib/supabase-server";
 import { runEdgeOcr } from "@/lib/ocr-edge";
 import { runGoogleVisionOcr } from "@/lib/ocr/google-vision";
 import { Database } from "@/lib/database.types";
@@ -16,6 +16,8 @@ function sanitizeFilename(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
+type ServerSupabaseClient = ReturnType<typeof createServerClient>;
+
 function getAccessToken(request: Request) {
   const authHeader = request.headers.get("authorization");
   if (!authHeader) return null;
@@ -23,12 +25,12 @@ function getAccessToken(request: Request) {
   return match?.[1] ?? null;
 }
 
-async function getMonthlyOcrUsage() {
+async function getMonthlyOcrUsage(supabase: ServerSupabaseClient) {
   const start = new Date();
   start.setDate(1);
   start.setHours(0, 0, 0, 0);
 
-  const { data, error } = await supabaseServer
+  const { data, error } = await supabase
     .from("ocr_usage_logs")
     .select("pages")
     .gte("request_at", start.toISOString());
@@ -45,6 +47,7 @@ async function getMonthlyOcrUsage() {
 
 export async function POST(request: Request) {
   try {
+    const supabase = createServerClient();
     const formData = await request.formData();
     const transactionId = formData.get("transactionId");
     const file = formData.get("file");
@@ -63,7 +66,7 @@ export async function POST(request: Request) {
     }
 
     let userId: string | null = null;
-    let uploadClient = supabaseServer;
+    let uploadClient = supabase;
 
     if (accessToken) {
       if (!supabaseAnonKey) {
@@ -114,7 +117,7 @@ export async function POST(request: Request) {
       throw uploadError;
     }
 
-    const { data: receipt, error: insertError } = await supabaseServer
+    const { data: receipt, error: insertError } = await supabase
       .from("receipts")
       .insert({
         transaction_id: transactionId,
@@ -136,7 +139,7 @@ export async function POST(request: Request) {
     let ocrConfidence: number | null = null;
 
     if (runOcr) {
-      const usedPages = await getMonthlyOcrUsage();
+      const usedPages = await getMonthlyOcrUsage(supabase);
       if (usedPages >= MAX_MONTHLY_OCR_PAGES) {
         return NextResponse.json(
           { error: "OCR monthly limit reached." },
@@ -152,7 +155,7 @@ export async function POST(request: Request) {
         ocrText = text;
         ocrConfidence = confidence;
 
-        const { error: updateError } = await supabaseServer
+        const { error: updateError } = await supabase
           .from("receipts")
           .update({ ocr_text: text, ocr_confidence: confidence })
           .eq("id", receipt.id);
@@ -161,7 +164,7 @@ export async function POST(request: Request) {
           throw updateError;
         }
 
-        const { error: logError } = await supabaseServer
+        const { error: logError } = await supabase
           .from("ocr_usage_logs")
           .insert({
             receipt_id: receipt.id,
@@ -175,7 +178,7 @@ export async function POST(request: Request) {
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : "OCR failed.";
-        await supabaseServer.from("ocr_usage_logs").insert({
+        await supabase.from("ocr_usage_logs").insert({
           receipt_id: receipt.id,
           status: "failed",
           pages: 1,

@@ -1,14 +1,20 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
+import { Database } from "@/lib/database.types";
+
 export async function middleware(request: NextRequest) {
   const res = NextResponse.next();
-  const authCookie = request.cookies
-    .getAll()
-    .find((cookie) => cookie.name.endsWith("-auth-token"));
-  const hasSession = Boolean(authCookie?.value);
+  const supabase = createMiddlewareClient<Database>({ req: request, res });
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const hasSession = Boolean(session);
 
   // Protect dashboard routes
-  if (request.nextUrl.pathname.startsWith("/dashboard") ||
+  if (request.nextUrl.pathname === "/" ||
+    request.nextUrl.pathname.startsWith("/dashboard") ||
     request.nextUrl.pathname.startsWith("/transactions") ||
     request.nextUrl.pathname.startsWith("/vendors") ||
     request.nextUrl.pathname.startsWith("/categories") ||
@@ -44,6 +50,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
     "/dashboard/:path*",
     "/transactions/:path*",
     "/vendors/:path*",

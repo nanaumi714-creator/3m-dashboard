@@ -248,6 +248,24 @@ Before considering a task complete:
    - Use card-based layouts for data display
    - Maintain consistent spacing and colors
 
+5. **Supabase auth/session or `never` type errors**
+   - Use `@supabase/auth-helpers-nextjs` clients only:
+     - Browser: `createClientComponentClient<Database>()` in `web/lib/supabase.ts`
+     - Route handlers: `createRouteHandlerClient<Database>({ cookies })` in `web/lib/supabase-server.ts`
+     - Middleware: `createMiddlewareClient<Database>({ req, res })` in `web/middleware.ts`
+   - Do **not** reintroduce `@supabase/ssr` or custom cookie adapters.
+   - If `from().insert()` becomes `never`, ensure the auth-helpers type override exists:
+     - `web/types/supabase-auth-helpers-nextjs.d.ts`
+
+6. **Build fails with `package.json` JSON parse error**
+   - Cause: BOM or invalid encoding in `web/package.json`.
+   - Fix: rewrite as UTF-8 **without BOM**.
+   - Avoid editing `web/package.json` with tools that insert BOM.
+
+7. **Auth callback issues**
+   - `web/app/auth/callback/page.tsx` is client-based and handles PKCE + hash tokens.
+   - Always start OAuth from `/login`; direct access to `/auth/callback` will show `missing_code`.
+
 ---
 
 ## Further Reading

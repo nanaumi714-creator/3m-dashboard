@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase-server";
+import { createServerClient } from "@/lib/supabase-server";
+
+export const dynamic = "force-dynamic";
 
 const MAX_MONTHLY_OCR_PAGES = Number(process.env.OCR_MONTHLY_LIMIT || "1000");
 
@@ -12,8 +14,9 @@ function getMonthStart(): Date {
 
 export async function GET() {
   try {
+    const supabase = createServerClient();
     const start = getMonthStart();
-    const { data, error } = await supabaseServer
+    const { data, error } = await supabase
       .from("ocr_usage_logs")
       .select("pages")
       .gte("request_at", start.toISOString());

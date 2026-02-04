@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase-server";
+import { createServerClient } from "@/lib/supabase-server";
 import { runEdgeOcr } from "@/lib/ocr-edge";
 
 const MAX_MONTHLY_OCR_PAGES = Number(process.env.OCR_MONTHLY_LIMIT || "1000");
 
-async function getMonthlyOcrUsage() {
+type ServerSupabaseClient = ReturnType<typeof createServerClient>;
+
+async function getMonthlyOcrUsage(supabase: ServerSupabaseClient) {
   const start = new Date();
   start.setDate(1);
   start.setHours(0, 0, 0, 0);
 
-  const { data, error } = await supabaseServer
+  const { data, error } = await supabase
     .from("ocr_usage_logs")
     .select("pages")
     .gte("request_at", start.toISOString());
@@ -22,8 +24,8 @@ async function getMonthlyOcrUsage() {
   );
 }
 
-async function loadReceiptFile(storageUrl: string) {
-  const { data, error } = await supabaseServer.storage
+async function loadReceiptFile(supabase: ServerSupabaseClient, storageUrl: string) {
+  const { data, error } = await supabase.storage
     .from("receipts")
     .download(storageUrl);
 
@@ -38,9 +40,10 @@ export async function POST(
   _request: Request,
   { params }: { params: { id: string } }
 ) {
+  const supabase = createServerClient();
   try {
     const receiptId = params.id;
-    const { data: receipt, error } = await supabaseServer
+    const { data: receipt, error } = await supabase
       .from("receipts")
       .select("*")
       .eq("id", receiptId)
@@ -53,7 +56,7 @@ export async function POST(
       );
     }
 
-    const usedPages = await getMonthlyOcrUsage();
+    const usedPages = await getMonthlyOcrUsage(supabase);
     if (usedPages >= MAX_MONTHLY_OCR_PAGES) {
       return NextResponse.json(
         { error: "OCR monthly limit reached." },
@@ -61,13 +64,13 @@ export async function POST(
       );
     }
 
-    const buffer = await loadReceiptFile(receipt.storage_url);
+    const buffer = await loadReceiptFile(supabase, receipt.storage_url);
     const { text, confidence } = await runEdgeOcr(
       buffer.toString("base64"),
       receipt.content_type || null
     );
 
-    const { error: updateError } = await supabaseServer
+    const { error: updateError } = await supabase
       .from("receipts")
       .update({ ocr_text: text, ocr_confidence: confidence })
       .eq("id", receipt.id);
@@ -76,7 +79,7 @@ export async function POST(
       throw updateError;
     }
 
-    const { error: logError } = await supabaseServer
+    const { error: logError } = await supabase
       .from("ocr_usage_logs")
       .insert({
         receipt_id: receipt.id,
@@ -93,7 +96,7 @@ export async function POST(
   } catch (error) {
     const message = error instanceof Error ? error.message : "OCR failed.";
     console.error("OCR rerun error:", error);
-    await supabaseServer.from("ocr_usage_logs").insert({
+    await supabase.from("ocr_usage_logs").insert({
       receipt_id: params.id,
       status: "failed",
       pages: 1,
