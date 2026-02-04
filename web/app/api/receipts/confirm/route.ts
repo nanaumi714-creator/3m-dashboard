@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { supabaseServer } from "@/lib/supabase-server";
+import { createServerClient } from "@/lib/supabase-server";
 import { findVendorSuggestion } from "@/lib/vendor-lookup";
 
 const SOURCE_TYPE = "receipt_upload";
@@ -39,6 +39,7 @@ function buildFingerprint(
 
 export async function POST(request: Request) {
   try {
+    const supabase = createServerClient();
     const body = (await request.json()) as ConfirmPayload;
 
     if (!body.receiptId) {
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "vendorName is required." }, { status: 400 });
     }
 
-    const { data: receipt, error: receiptError } = await supabaseServer
+    const { data: receipt, error: receiptError } = await supabase
       .from("receipts")
       .select("*")
       .eq("id", body.receiptId)
@@ -102,7 +103,7 @@ export async function POST(request: Request) {
     const vendorRaw = body.vendorName.trim();
     const vendorNorm = normalizeVendor(vendorRaw);
 
-    const { data: source, error: sourceError } = await supabaseServer
+    const { data: source, error: sourceError } = await supabase
       .from("import_sources")
       .insert({
         source_type: SOURCE_TYPE,
@@ -127,7 +128,7 @@ export async function POST(request: Request) {
 
     const description = body.description?.trim() || vendorRaw;
 
-    const { data: transaction, error: transactionError } = await supabaseServer
+    const { data: transaction, error: transactionError } = await supabase
       .from("transactions")
       .insert({
         occurred_on: body.occurredOn,
@@ -147,7 +148,7 @@ export async function POST(request: Request) {
       throw transactionError || new Error("Failed to create transaction.");
     }
 
-    const { error: infoError } = await supabaseServer
+    const { error: infoError } = await supabase
       .from("transaction_business_info")
       .insert({
         transaction_id: transaction.id,
@@ -155,6 +156,7 @@ export async function POST(request: Request) {
         business_ratio: resolvedIsBusiness ? resolvedRatio : 0,
         category_id: resolvedIsBusiness ? resolvedCategoryId : null,
         judged_by: "receipt_upload",
+        judged_at: new Date().toISOString(),
         audit_note: "Receipt review confirmation.",
       });
 
@@ -162,7 +164,7 @@ export async function POST(request: Request) {
       throw infoError;
     }
 
-    const { error: receiptUpdateError } = await supabaseServer
+    const { error: receiptUpdateError } = await supabase
       .from("receipts")
       .update({ transaction_id: transaction.id })
       .eq("id", receipt.id);

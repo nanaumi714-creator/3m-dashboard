@@ -6,13 +6,20 @@ import { Database } from '@/lib/database.types'
 
 type Vendor = Database['public']['Tables']['vendors']['Row']
 type ExpenseCategory = Database['public']['Tables']['expense_categories']['Row']
+type VendorWithCategory = Vendor & {
+  expense_categories?: Pick<ExpenseCategory, "id" | "name"> | null;
+}
 
 export default function VendorsPage() {
-  const [vendors, setVendors] = useState<Vendor[]>([])
+  const [vendors, setVendors] = useState<VendorWithCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
-  const [newVendor, setNewVendor] = useState({ name: "", description: "" })
+  const [newVendor, setNewVendor] = useState({
+    name: "",
+    description: "",
+    default_category_id: "",
+  })
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [categories, setCategories] = useState<ExpenseCategory[]>([])
 
@@ -74,7 +81,7 @@ export default function VendorsPage() {
 
       if (categoriesError) throw categoriesError
 
-      setVendors(vendorsData || [])
+      setVendors((vendorsData || []) as VendorWithCategory[])
       setCategories(categoriesData || [])
     } catch (err) {
       console.error('Error loading data:', err)
@@ -105,7 +112,7 @@ export default function VendorsPage() {
 
       setNewVendor({ name: '', description: '', default_category_id: '' })
       setShowAddForm(false)
-      loadData()
+      loadVendors()
     } catch (err) {
       console.error('Error adding vendor:', err)
       alert('Failed to add vendor: ' + (err instanceof Error ? err.message : 'Unknown error'))
@@ -120,7 +127,7 @@ export default function VendorsPage() {
         .eq('id', id)
 
       if (error) throw error
-      loadData()
+      loadVendors()
     } catch (err) {
       console.error('Error updating vendor:', err)
       alert('Failed to update vendor')

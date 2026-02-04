@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase-server";
+import { createServerClient } from "@/lib/supabase-server";
 
 export async function GET(
   _request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const { data: receipt, error } = await supabaseServer
+    const supabase = createServerClient();
+    const { data: receipt, error } = await supabase
       .from("receipts")
       .select("storage_url")
       .eq("id", params.id)
@@ -19,7 +20,7 @@ export async function GET(
       );
     }
 
-    const { data, error: signError } = await supabaseServer.storage
+    const { data, error: signError } = await supabase.storage
       .from("receipts")
       .createSignedUrl(receipt.storage_url, 60 * 10);
 

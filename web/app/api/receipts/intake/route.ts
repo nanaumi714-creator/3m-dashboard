@@ -34,7 +34,10 @@ async function getMonthlyOcrUsage(supabase: any, userId: string) {
     throw error;
   }
 
-  return (data || []).reduce((sum, row) => sum + (row.pages || 0), 0);
+  return (data || []).reduce(
+    (sum: number, row: { pages: number | null }) => sum + (row.pages || 0),
+    0
+  );
 }
 
 function getAccessToken(request: Request) {

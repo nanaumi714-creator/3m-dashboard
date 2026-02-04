@@ -19,19 +19,19 @@
 
 ## Current Status
 
-**Active Phase**: Phase 3 (see `ai/PHASE.md` for constraints)
+**Active Phase**: Phase 4 (see `ai/PHASE.md` for constraints)
 
 **Tech Stack**:
 - Frontend: Next.js 14+ (App Router), Tailwind CSS v3.4
-- Backend: Supabase Local (PostgreSQL 15+)
+- Backend: Supabase Cloud (PostgreSQL 15+)
 - Importer: Python 3.11+
-- Environment: Local-only, zero-cost
+- Environment: Cloud deployment (Vercel + Supabase Cloud), local dev supported
 
 **Currency**: JPY only (amount_yen BIGINT, expenses are negative)
 
 ---
 
-## Phase 3 Features (Current)
+## Phase 4 Features (Current)
 
 ✅ **Phase 2 Baseline (Already Implemented)**:
 - Vendor master (`vendors`, `vendor_aliases` tables)
@@ -41,18 +41,21 @@
 - Category management UI
 - Improved transaction listing with filters
 
-✅ **Phase 3 Unlocks (To Implement)**:
+✅ **Phase 3 Unlocks (Implemented)**:
 - OCR integration (Google Vision API)
 - Export (CSV/Excel)
 - Advanced search (Japanese full-text)
 
-❌ **Phase 3 Constraints** (Still Forbidden):
-- Cloud services (Supabase Cloud, Vercel)
+✅ **Phase 4 Unlocks (Implemented)**:
+- Cloud deployment (Vercel + Supabase Cloud)
+- Authentication (Supabase Auth)
+- RLS (Row Level Security)
+- Mobile UI (responsive, camera upload)
+- Gmail sync (cron/automation)
+
+❌ **Phase 4 Constraints** (Still Forbidden):
 - Foreign currency support
-- localStorage/sessionStorage
-- Mobile optimization
 - Revenue input UI (expense-focused for now)
-- Gmail sync (deferred to Phase 4)
 
 ✅ **Required Practices**:
 - Idempotent imports (checksum-based)
@@ -166,7 +169,7 @@ Before considering a task complete:
 
 ---
 
-## Design System (Phase 3 Premium)
+## Design System (Phase 4 Premium)
 
 **Color Palette**:
 - **Primary Theme**: Blue (`blue-600`). Avoid using plain Black (`gray-900`) for headers, buttons, or active states.
@@ -244,6 +247,24 @@ Before considering a task complete:
    - Follow the Design System section above
    - Use card-based layouts for data display
    - Maintain consistent spacing and colors
+
+5. **Supabase auth/session or `never` type errors**
+   - Use `@supabase/auth-helpers-nextjs` clients only:
+     - Browser: `createClientComponentClient<Database>()` in `web/lib/supabase.ts`
+     - Route handlers: `createRouteHandlerClient<Database>({ cookies })` in `web/lib/supabase-server.ts`
+     - Middleware: `createMiddlewareClient<Database>({ req, res })` in `web/middleware.ts`
+   - Do **not** reintroduce `@supabase/ssr` or custom cookie adapters.
+   - If `from().insert()` becomes `never`, ensure the auth-helpers type override exists:
+     - `web/types/supabase-auth-helpers-nextjs.d.ts`
+
+6. **Build fails with `package.json` JSON parse error**
+   - Cause: BOM or invalid encoding in `web/package.json`.
+   - Fix: rewrite as UTF-8 **without BOM**.
+   - Avoid editing `web/package.json` with tools that insert BOM.
+
+7. **Auth callback issues**
+   - `web/app/auth/callback/page.tsx` is client-based and handles PKCE + hash tokens.
+   - Always start OAuth from `/login`; direct access to `/auth/callback` will show `missing_code`.
 
 ---
 

@@ -320,42 +320,15 @@ npm run type-check
 
 ---
 
-## 🌐 デプロイ
+## ?? ????
 
-### Vercel + Supabase Cloud
+??? `.docs/deployment.md` ??????????
 
-詳細は [deployment.md](.docs/deployment.md) を参照
+????:
 
-**クイックスタート:**
-
-```bash
-# Vercel CLI インストール
-npm install -g vercel
-
-# デプロイ
-cd web
-vercel
-
-# 環境変数設定
-vercel env add NEXT_PUBLIC_SUPABASE_URL
-vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-# 本番デプロイ
-vercel --prod
-```
-
-### 自動デプロイ (CI/CD)
-
-GitHub Actions で自動化済み:
-- `main` ブランチへの push で自動デプロイ
-- `.github/workflows/deploy.yml` 参照
-
-必要な GitHub Secrets:
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
-- `SUPABASE_ACCESS_TOKEN`
-- `SUPABASE_PROJECT_REF`
+1. Supabase Cloud ????????????????
+2. `web/` ? Vercel ?????
+3. Vercel ?????? `NEXT_PUBLIC_SUPABASE_URL` ? `NEXT_PUBLIC_SUPABASE_ANON_KEY` ? `SUPABASE_SERVICE_ROLE_KEY` ???
 
 ---
 

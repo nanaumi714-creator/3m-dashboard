@@ -1,4 +1,4 @@
-import { supabaseServer } from "@/lib/supabase-server";
+import { createServerClient } from "@/lib/supabase-server";
 
 export type VendorSuggestion = {
   vendorId: string | null;
@@ -22,7 +22,8 @@ type VendorRuleRow = {
 };
 
 async function findVendorByName(name: string): Promise<VendorRow | null> {
-  const { data, error } = await supabaseServer
+  const supabase = createServerClient();
+  const { data, error } = await supabase
     .from("vendors")
     .select("id, name, default_category_id, is_active")
     .ilike("name", name)
@@ -38,7 +39,8 @@ async function findVendorByName(name: string): Promise<VendorRow | null> {
 }
 
 async function findVendorByAlias(name: string): Promise<VendorRow | null> {
-  const { data, error } = await supabaseServer
+  const supabase = createServerClient();
+  const { data, error } = await supabase
     .from("vendor_aliases")
     .select("vendor_id")
     .ilike("alias", name)
@@ -49,7 +51,7 @@ async function findVendorByAlias(name: string): Promise<VendorRow | null> {
     return null;
   }
 
-  const { data: vendor, error: vendorError } = await supabaseServer
+  const { data: vendor, error: vendorError } = await supabase
     .from("vendors")
     .select("id, name, default_category_id, is_active")
     .eq("id", data.vendor_id)
@@ -66,7 +68,8 @@ async function findVendorByAlias(name: string): Promise<VendorRow | null> {
 async function findVendorRule(
   vendorId: string
 ): Promise<VendorRuleRow | null> {
-  const { data, error } = await supabaseServer
+  const supabase = createServerClient();
+  const { data, error } = await supabase
     .from("vendor_rules")
     .select("is_business, business_ratio, category_id")
     .eq("vendor_id", vendorId)

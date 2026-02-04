@@ -98,7 +98,12 @@ export async function POST(request: Request) {
         vendor_raw: row.vendor_raw,
         vendor_norm: row.vendor_norm,
         payment_method: row.payment_methods?.name || "",
-        is_business: row.transaction_business_info?.is_business ?? null,
+        is_business:
+          row.transaction_business_info?.is_business == null
+            ? null
+            : row.transaction_business_info.is_business
+              ? "true"
+              : "false",
         business_ratio: row.transaction_business_info?.business_ratio ?? null,
         category_id: row.transaction_business_info?.category_id ?? null,
         ocr_text: ocrText,

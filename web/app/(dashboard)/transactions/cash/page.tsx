@@ -81,6 +81,8 @@ export default function CashEntryPage() {
                         business_ratio: formData.business_ratio,
                         category_id: formData.category_id || null,
                         judged_by: "manual_entry",
+                        judged_at: new Date().toISOString(),
+                        audit_note: null,
                     });
 
                 if (biError) throw biError;
