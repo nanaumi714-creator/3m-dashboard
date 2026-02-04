@@ -291,14 +291,14 @@ export default function TransactionsPage() {
                           {isExpense ? "" : "+"}¥{Math.abs(tx.amount_yen).toLocaleString()}
                         </span>
                       </div>
-                      <div className="mb-1">
-                        <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap", expenseType.className)}>
+                      <div className="mt-1 flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex items-center gap-2">
+                          <span className="text-[8px] text-gray-400 font-bold uppercase truncate">{tx.vendor_raw || "不明"}</span>
+                          <span className="text-[8px] text-gray-400 font-bold shrink-0">{dateStr} ({tx.payment_methods?.name || "-"})</span>
+                        </div>
+                        <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap shrink-0", expenseType.className)}>
                           {expenseType.label}
                         </span>
-                      </div>
-                      <div className="flex items-center justify-between mt-0.5">
-                        <span className="text-[8px] text-gray-400 font-bold uppercase truncate max-w-[100px]">{tx.vendor_raw || "不明"}</span>
-                        <span className="text-[8px] text-gray-400 font-bold">{dateStr} ({tx.payment_methods?.name || "-"})</span>
                       </div>
                     </div>
                   </Link>
