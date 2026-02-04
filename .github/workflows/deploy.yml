@@ -4,34 +4,9 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
-  build-web:
-    name: Build Web (PR only)
-    if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
-      
-      - name: Install dependencies
-        working-directory: ./web
-        run: npm ci
-      
-      - name: Build
-        working-directory: ./web
-        run: npm run build
-
   deploy-web:
     name: Deploy Web (Vercel)
     if: ${{ github.event_name == 'push' }}
