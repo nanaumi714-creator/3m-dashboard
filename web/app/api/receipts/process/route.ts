@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import path from "path";
-import { promises as fs } from "fs";
 import crypto from "crypto";
 import { findVendorSuggestion } from "@/lib/vendor-lookup";
 import { createServerClient } from "@/lib/supabase-server";
@@ -23,12 +21,6 @@ type TransactionData = {
 
 function sanitizeFilename(name: string) {
     return name.replace(/[^a-zA-Z0-9._-]/g, "_");
-}
-
-async function ensureUploadDir() {
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await fs.mkdir(uploadDir, { recursive: true });
-    return uploadDir;
 }
 
 function normalizeVendor(raw: string): string {
@@ -62,18 +54,28 @@ function getAccessToken(request: Request) {
 async function getSupabaseClient(request: Request) {
     let supabase = createServerClient();
     let userId: string | null = null;
-    const accessToken = getAccessToken(request);
-    const { data: authData, error: authError } = accessToken
-        ? await supabase.auth.getUser(accessToken)
-        : { data: { user: null }, error: null };
-
-    if (authError) {
-        console.error("Auth error:", authError);
+    const { data: cookieAuthData, error: cookieAuthError } = await supabase.auth.getUser();
+    if (cookieAuthError) {
+        console.warn("cookie auth failed:", cookieAuthError.message);
     }
 
-    if (authData.user) {
-        userId = authData.user.id;
-    } else if (process.env.NEXT_PUBLIC_DISABLE_AUTH === "true") {
+    if (cookieAuthData.user) {
+        userId = cookieAuthData.user.id;
+    } else {
+        const accessToken = getAccessToken(request);
+        if (accessToken) {
+            const { data: bearerAuthData, error: bearerAuthError } =
+                await supabase.auth.getUser(accessToken);
+            if (bearerAuthError) {
+                console.warn("bearer auth failed:", bearerAuthError.message);
+            }
+            if (bearerAuthData.user) {
+                userId = bearerAuthData.user.id;
+            }
+        }
+    }
+
+    if (!userId && process.env.NEXT_PUBLIC_DISABLE_AUTH === "true") {
         console.warn("Auth disabled: Using service role for receipt process.");
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -116,21 +118,29 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
         }
 
-        // 1. Save File
+        // 1. Save File (Supabase Storage - Vercel safe)
         const buffer = Buffer.from(await file.arrayBuffer());
-        const uploadDir = await ensureUploadDir();
         const safeName = sanitizeFilename(file.name || "receipt");
         const filename = `${crypto.randomUUID()}-${safeName}`;
-        const fullPath = path.join(uploadDir, filename);
-        await fs.writeFile(fullPath, new Uint8Array(buffer));
-        const storageUrl = `/uploads/${filename}`;
+        const storagePath = `${userId}/${filename}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from("receipts")
+            .upload(storagePath, buffer, {
+                contentType: file.type || "application/octet-stream",
+                upsert: false,
+            });
+
+        if (uploadError) {
+            throw uploadError;
+        }
 
         // 2. Insert Receipt
         const { data: receipt, error: receiptError } = await supabase
             .from("receipts")
             .insert({
                 user_id: userId,
-                storage_url: storageUrl,
+                storage_url: storagePath,
                 original_filename: file.name || null,
                 content_type: file.type || null,
                 file_size_bytes: buffer.length,
@@ -141,6 +151,7 @@ export async function POST(request: Request) {
             .single();
 
         if (receiptError || !receipt) {
+            await supabase.storage.from("receipts").remove([storagePath]);
             throw receiptError || new Error("Failed to create receipt.");
         }
 
