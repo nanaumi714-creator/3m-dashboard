@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Database } from '@/lib/database.types'
+import { fetchVisibleExpenseCategories } from '@/lib/expense-categories'
 
 type Vendor = Database['public']['Tables']['vendors']['Row']
 type ExpenseCategory = Database['public']['Tables']['expense_categories']['Row']
@@ -73,13 +74,7 @@ export default function VendorsPage() {
       if (vendorsError) throw vendorsError
 
       // Load all categories for dropdown
-      const { data: categoriesData, error: categoriesError } = await supabase
-        .from('expense_categories')
-        .select('*')
-        .eq('is_active', true)
-        .order('name')
-
-      if (categoriesError) throw categoriesError
+      const categoriesData = await fetchVisibleExpenseCategories(supabase)
 
       setVendors((vendorsData || []) as VendorWithCategory[])
       setCategories(categoriesData || [])

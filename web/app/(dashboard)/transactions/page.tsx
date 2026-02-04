@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { supabase } from "@/lib/supabase";
 import { Database } from "@/lib/database.types";
+import { fetchVisibleExpenseCategories } from "@/lib/expense-categories";
 import { cn } from "@/lib/utils";
 import { TransactionSkeleton } from "../components/Skeleton";
 
@@ -65,8 +66,8 @@ export default function TransactionsPage() {
   useEffect(() => {
     async function loadCategories() {
       try {
-        const { data } = await supabase.from("expense_categories").select("*").order("name");
-        setCategories(data || []);
+        const data = await fetchVisibleExpenseCategories(supabase);
+        setCategories(data);
       } catch (err) { console.error(err); }
     }
     loadCategories();

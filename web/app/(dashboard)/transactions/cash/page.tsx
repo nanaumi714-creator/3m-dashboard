@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { fetchVisibleExpenseCategories } from "@/lib/expense-categories";
 import { Database } from "@/lib/database.types";
 
 type PaymentMethod = Database["public"]["Tables"]["payment_methods"]["Row"];
@@ -40,12 +41,7 @@ export default function CashEntryPage() {
             setCashPaymentId(pmData[0].id);
         }
 
-        const { data: catData } = await supabase
-            .from("expense_categories")
-            .select("*")
-            .eq("is_active", true)
-            .order("name");
-
+        const catData = await fetchVisibleExpenseCategories(supabase);
         setCategories(catData || []);
     }
 

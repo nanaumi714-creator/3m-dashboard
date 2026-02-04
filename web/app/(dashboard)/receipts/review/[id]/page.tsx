@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { fetchVisibleExpenseCategories } from "@/lib/expense-categories";
 
 type ReceiptRow = {
   id: string;
@@ -85,22 +86,17 @@ export default function ReceiptReviewPage() {
         if (receiptError) throw receiptError;
         setReceipt(receiptData as ReceiptRow);
 
-        const [{ data: methods, error: methodsError }, { data: cats, error: catsError }] =
+        const [{ data: methods, error: methodsError }, cats] =
           await Promise.all([
             supabase
               .from("payment_methods")
               .select("id, name")
               .eq("is_active", true)
               .order("name"),
-            supabase
-              .from("expense_categories")
-              .select("id, name")
-              .eq("is_active", true)
-              .order("name"),
+            fetchVisibleExpenseCategories(supabase),
           ]);
 
         if (methodsError) throw methodsError;
-        if (catsError) throw catsError;
 
         setPaymentMethods((methods || []) as PaymentMethod[]);
         setCategories((cats || []) as ExpenseCategory[]);

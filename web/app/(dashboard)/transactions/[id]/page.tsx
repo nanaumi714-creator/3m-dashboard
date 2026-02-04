@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Database } from "@/lib/database.types";
+import { fetchVisibleExpenseCategories } from "@/lib/expense-categories";
 import { normalizeVendor, sha256 } from "@/lib/utils/shared";
 
 type Receipt = Database["public"]["Tables"]["receipts"]["Row"];
@@ -113,12 +114,9 @@ export default function TransactionDetailPage({
         if (receiptError) throw receiptError;
         setReceipts((receiptData || []) as Receipt[]);
 
-        const [{ data: categoryData, error: categoryError }, { data: paymentData, error: paymentError }] =
+        const [categoryData, { data: paymentData, error: paymentError }] =
           await Promise.all([
-            supabase
-              .from("expense_categories")
-              .select("*")
-              .order("name"),
+            fetchVisibleExpenseCategories(supabase),
             supabase
               .from("payment_methods")
               .select("*")
@@ -126,7 +124,6 @@ export default function TransactionDetailPage({
               .order("name"),
           ]);
 
-        if (categoryError) throw categoryError;
         if (paymentError) throw paymentError;
         setCategories((categoryData || []) as ExpenseCategory[]);
         setPaymentMethods((paymentData || []) as PaymentMethod[]);

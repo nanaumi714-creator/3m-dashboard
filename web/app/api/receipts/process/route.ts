@@ -97,6 +97,7 @@ export async function POST(request: Request) {
         const formData = await request.formData();
         const file = formData.get("file");
         const ocrText = formData.get("ocrText") as string | null;
+        const storeReceiptRequested = formData.get("storeReceipt") === "true";
         const transactionJson = formData.get("transactionData") as string;
 
         if (!(file instanceof File)) {
@@ -118,50 +119,56 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
         }
 
-        // 1. Save File (Supabase Storage - Vercel safe)
-        const buffer = Buffer.from(await file.arrayBuffer());
-        const safeName = sanitizeFilename(file.name || "receipt");
-        const filename = `${crypto.randomUUID()}-${safeName}`;
-        const storagePath = `${userId}/${filename}`;
-
-        const { error: uploadError } = await supabase.storage
-            .from("receipts")
-            .upload(storagePath, buffer, {
-                contentType: file.type || "application/octet-stream",
-                upsert: false,
-            });
-
-        if (uploadError) {
-            throw uploadError;
-        }
-
-        // 2. Insert Receipt
-        const { data: receipt, error: receiptError } = await supabase
-            .from("receipts")
-            .insert({
-                user_id: userId,
-                storage_url: storagePath,
-                original_filename: file.name || null,
-                content_type: file.type || null,
-                file_size_bytes: buffer.length,
-                ocr_text: ocrText,
-                ocr_confidence: null, // We could pass this too if needed, but keeping it simple
-            })
-            .select("id")
-            .single();
-
-        if (receiptError || !receipt) {
-            await supabase.storage.from("receipts").remove([storagePath]);
-            throw receiptError || new Error("Failed to create receipt.");
-        }
-
-        // 3. Logic from confirm/route.ts (Create Transaction)
+        // 1. Resolve transaction/business details
         const vendorSuggestion = await findVendorSuggestion(body.vendorName);
 
         const resolvedIsBusiness = body.isBusiness ?? vendorSuggestion.isBusiness ?? Boolean(vendorSuggestion.categoryId);
         const resolvedRatioRaw = body.businessRatio ?? vendorSuggestion.businessRatio ?? (resolvedIsBusiness ? 100 : 0);
         const resolvedRatio = Math.min(100, Math.max(0, Math.round(resolvedRatioRaw)));
         const resolvedCategoryId = body.categoryId ?? vendorSuggestion.categoryId ?? null;
+        const shouldStoreReceipt = storeReceiptRequested && resolvedIsBusiness;
+
+        // 2. Save receipt image only when explicitly allowed and business expense
+        let receiptId: string | null = null;
+
+        if (shouldStoreReceipt) {
+            const buffer = Buffer.from(await file.arrayBuffer());
+            const safeName = sanitizeFilename(file.name || "receipt");
+            const filename = `${crypto.randomUUID()}-${safeName}`;
+            const storagePath = `${userId}/${filename}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from("receipts")
+                .upload(storagePath, buffer, {
+                    contentType: file.type || "application/octet-stream",
+                    upsert: false,
+                });
+
+            if (uploadError) {
+                throw uploadError;
+            }
+
+            const { data: receipt, error: receiptError } = await supabase
+                .from("receipts")
+                .insert({
+                    user_id: userId,
+                    storage_url: storagePath,
+                    original_filename: file.name || null,
+                    content_type: file.type || null,
+                    file_size_bytes: buffer.length,
+                    ocr_text: ocrText,
+                    ocr_confidence: null, // We could pass this too if needed, but keeping it simple
+                })
+                .select("id")
+                .single();
+
+            if (receiptError || !receipt) {
+                await supabase.storage.from("receipts").remove([storagePath]);
+                throw receiptError || new Error("Failed to create receipt.");
+            }
+
+            receiptId = receipt.id;
+        }
 
         // Negate amount for expense
         const normalizedAmount = body.amountYen < 0 ? Math.round(body.amountYen) : -Math.abs(Math.round(body.amountYen));
@@ -176,7 +183,8 @@ export async function POST(request: Request) {
                 source_type: SOURCE_TYPE,
                 user_id: userId,
                 metadata: {
-                    receipt_id: receipt.id,
+                    receipt_id: receiptId,
+                    receipt_saved: shouldStoreReceipt,
                     created_by: "receipt_upload_v2",
                 },
             })
@@ -225,13 +233,15 @@ export async function POST(request: Request) {
             if (infoError) throw infoError;
         }
 
-        // 4. Link Receipt to Transaction
-        const { error: updateError } = await supabase
-            .from("receipts")
-            .update({ transaction_id: transaction.id })
-            .eq("id", receipt.id);
+        // 4. Link Receipt to Transaction (only when saved)
+        if (receiptId) {
+            const { error: updateError } = await supabase
+                .from("receipts")
+                .update({ transaction_id: transaction.id })
+                .eq("id", receiptId);
 
-        if (updateError) throw updateError;
+            if (updateError) throw updateError;
+        }
 
         return NextResponse.json({ success: true, transactionId: transaction.id });
 

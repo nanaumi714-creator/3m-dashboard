@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { fetchVisibleExpenseCategories } from "@/lib/expense-categories";
 import { cn } from "@/lib/utils";
 import { normalizeVendor, sha256 } from "@/lib/utils/shared";
 
@@ -30,9 +31,9 @@ export default function TransactionNewPage() {
 
   useEffect(() => {
     async function loadOptions() {
-      const [{ data: methods }, { data: cats }] = await Promise.all([
+      const [{ data: methods }, cats] = await Promise.all([
         supabase.from("payment_methods").select("id, name").eq("is_active", true).order("name"),
-        supabase.from("expense_categories").select("id, name").eq("is_active", true).order("name"),
+        fetchVisibleExpenseCategories(supabase),
       ]);
       setPaymentMethods((methods || []) as PaymentMethod[]);
       setCategories((cats || []) as Category[]);
