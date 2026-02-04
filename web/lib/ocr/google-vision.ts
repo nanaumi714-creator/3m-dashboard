@@ -1,4 +1,6 @@
 
+import { runEdgeOcr } from "@/lib/ocr-edge";
+
 export async function runGoogleVisionOcr(
     base64Image: string,
     mimeType: string | null
@@ -6,8 +8,9 @@ export async function runGoogleVisionOcr(
     const apiKey = process.env.GOOGLE_VISION_API_KEY;
 
     if (!apiKey) {
-        console.warn("GOOGLE_VISION_API_KEY is not set. Creating dummy OCR response.");
-        return { text: null, confidence: 0 };
+        console.warn("GOOGLE_VISION_API_KEY is not set. Falling back to Edge OCR.");
+        const { text, confidence } = await runEdgeOcr(base64Image, mimeType);
+        return { text: text || null, confidence: confidence ?? 0 };
     }
 
     const url = `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`;
@@ -60,7 +63,8 @@ export async function runGoogleVisionOcr(
         return { text: fullText, confidence: 1.0 };
 
     } catch (error) {
-        console.error("runGoogleVisionOcr failed:", error);
-        throw error;
+        console.error("runGoogleVisionOcr failed. Falling back to Edge OCR:", error);
+        const { text, confidence } = await runEdgeOcr(base64Image, mimeType);
+        return { text: text || null, confidence: confidence ?? 0 };
     }
 }
