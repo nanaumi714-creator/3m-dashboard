@@ -9,6 +9,7 @@ on:
 jobs:
   deploy-web:
     name: Deploy Web (Vercel)
+    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
