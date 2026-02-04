@@ -81,6 +81,21 @@ See `supabase/init.sql` for the actual DDL.
 | is_active | BOOLEAN | Whether category is still in use |
 | user_id | UUID | Owner user id for row-level security (auth.uid). |
 
+### 6.1 `user_category_preferences`
+**Role**: Per-user visibility overrides for categories.
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| user_id | UUID | Owner user id (auth.uid). |
+| category_id | UUID | Target category id. |
+| is_visible | BOOLEAN | Whether the user wants this category visible. |
+| updated_at | TIMESTAMP | Last visibility change time. |
+
+Notes:
+- `expense_categories.is_active` remains the global/system flag.
+- User-specific hide/show is managed by `user_category_preferences`.
+- Effective visibility = `expense_categories.is_active` AND user override (`is_visible`, default true when no row exists).
+
 ### 7. `vendors`
 **Role**: Master table for vendor normalization and automation.
 

@@ -224,15 +224,6 @@ export default function DashboardPage() {
 
               return (
                 <Link key={tx.id} href={`/transactions/${tx.id}`} className="flex items-center gap-3 group">
-                  <div className={cn(
-                    "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-active:scale-95 shadow-sm",
-                    !tx.transaction_business_info ? "bg-orange-50 text-orange-400" :
-                      tx.transaction_business_info.is_business ? "bg-blue-50 text-blue-500" : "bg-gray-50 text-gray-400"
-                  )}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      {tx.transaction_business_info?.is_business ? <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /> : <circle cx="12" cy="12" r="10" />}
-                    </svg>
-                  </div>
                   <span className="w-12 text-xs text-gray-400 font-black text-left shrink-0">{dateStr}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">

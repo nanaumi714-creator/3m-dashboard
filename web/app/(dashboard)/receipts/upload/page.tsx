@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { fetchVisibleExpenseCategories } from "@/lib/expense-categories";
 import { cn } from "@/lib/utils";
 
 type AnalyzeResponse = {
@@ -40,6 +41,7 @@ export default function ReceiptUploadPage() {
   const [categoryId, setCategoryId] = useState("");
   const [businessRatio, setBusinessRatio] = useState("100");
   const [isBusiness, setIsBusiness] = useState<"business" | "personal" | "pending">("pending");
+  const [allowReceiptStorage, setAllowReceiptStorage] = useState(false);
   const [showOcrText, setShowOcrText] = useState(false);
 
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
@@ -48,9 +50,9 @@ export default function ReceiptUploadPage() {
 
   useEffect(() => {
     async function loadOptions() {
-      const [{ data: methods }, { data: cats }] = await Promise.all([
+      const [{ data: methods }, cats] = await Promise.all([
         supabase.from("payment_methods").select("id, name").eq("is_active", true).order("name"),
-        supabase.from("expense_categories").select("id, name").eq("is_active", true).order("name"),
+        fetchVisibleExpenseCategories(supabase),
       ]);
       setPaymentMethods((methods || []) as PaymentMethod[]);
       setCategories((cats || []) as ExpenseCategory[]);
@@ -64,6 +66,12 @@ export default function ReceiptUploadPage() {
   }, [step]);
 
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
+
+  useEffect(() => {
+    if (isBusiness !== "business") {
+      setAllowReceiptStorage(false);
+    }
+  }, [isBusiness]);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -106,6 +114,7 @@ export default function ReceiptUploadPage() {
       const formData = new FormData();
       formData.append("file", selectedFile);
       formData.append("ocrText", ocrText);
+      formData.append("storeReceipt", String(allowReceiptStorage));
       formData.append("transactionData", JSON.stringify(transactionData));
       const response = await fetch("/api/receipts/process", { method: "POST", body: formData });
       if (!response.ok) throw new Error("保存に失敗しました。");
@@ -217,6 +226,19 @@ export default function ReceiptUploadPage() {
                 </div>
               </div>
             )}
+            <label className={cn("flex items-center gap-3 rounded-2xl px-4 py-3 bg-white/80", isBusiness !== "business" && "opacity-60")}>
+              <input
+                type="checkbox"
+                checked={allowReceiptStorage}
+                onChange={(e) => setAllowReceiptStorage(e.target.checked)}
+                disabled={isBusiness !== "business"}
+                className="h-4 w-4 rounded border-gray-200 text-blue-600 focus:ring-blue-500"
+              />
+              <div className="min-w-0">
+                <p className="text-[11px] font-black text-blue-900">事業支出のみ画像を保存する</p>
+                <p className="text-[9px] font-bold text-blue-400">容量節約のため、未チェック時は画像を保存しません</p>
+              </div>
+            </label>
           </div>
 
           <button onClick={handleSave} disabled={isSaving} className="w-full bg-gray-900 text-white py-6 rounded-[32px] font-black text-sm active:scale-95 transition-all shadow-2xl">

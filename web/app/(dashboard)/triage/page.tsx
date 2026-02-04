@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Database } from "@/lib/database.types";
+import { fetchVisibleExpenseCategories } from "@/lib/expense-categories";
 import { cn } from "@/lib/utils";
 
 type Transaction = Database["public"]["Tables"]["transactions"]["Row"];
@@ -31,8 +32,7 @@ export default function TriagePage() {
 
       if (transactionError) throw transactionError;
       const unjudged = (transactionData as any[]).filter((tx) => !tx.transaction_business_info);
-      const { data: categoryData, error: categoryError } = await supabase.from("expense_categories").select("*").eq("is_active", true).order("name");
-      if (categoryError) throw categoryError;
+      const categoryData = await fetchVisibleExpenseCategories(supabase);
 
       setUntriaged(unjudged);
       setCategories(categoryData || []);

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const items = [
@@ -42,6 +42,37 @@ const items = [
 export default function BottomNav() {
     const pathname = usePathname();
     const [showAddMenu, setShowAddMenu] = useState(false);
+    const hasPushedMenuStateRef = useRef(false);
+
+    useEffect(() => {
+        const handlePopState = () => {
+            if (!hasPushedMenuStateRef.current) return;
+            hasPushedMenuStateRef.current = false;
+            setShowAddMenu(false);
+        };
+
+        window.addEventListener("popstate", handlePopState);
+        return () => {
+            window.removeEventListener("popstate", handlePopState);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!showAddMenu) return;
+        if (hasPushedMenuStateRef.current) return;
+
+        window.history.pushState({ __addMenuOpen: true }, "");
+        hasPushedMenuStateRef.current = true;
+    }, [showAddMenu]);
+
+    const closeAddMenu = () => {
+        if (!showAddMenu) return;
+        if (hasPushedMenuStateRef.current) {
+            window.history.back();
+            return;
+        }
+        setShowAddMenu(false);
+    };
 
     return (
         <>
@@ -81,7 +112,7 @@ export default function BottomNav() {
 
             {/* Add Menu Modal */}
             {showAddMenu && (
-                <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[110] flex items-end animate-in fade-in duration-200" onClick={() => setShowAddMenu(false)}>
+                <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[110] flex items-end animate-in fade-in duration-200" onClick={closeAddMenu}>
                     <div className="bg-white w-full rounded-t-[40px] p-8 pb-12 animate-in slide-in-from-bottom-20 duration-300" onClick={e => e.stopPropagation()}>
                         <div className="w-12 h-1 bg-gray-100 rounded-full mx-auto mb-8" />
                         <h3 className="text-xl font-black text-gray-900 mb-6 tracking-tight">登録方法を選択</h3>
@@ -131,7 +162,7 @@ export default function BottomNav() {
                         </div>
 
                         <button
-                            onClick={() => setShowAddMenu(false)}
+                            onClick={closeAddMenu}
                             className="w-full mt-8 py-4 text-xs font-black text-gray-300 uppercase tracking-widest"
                         >
                             Close
