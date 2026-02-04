@@ -1,10 +1,14 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import DevAutoLogin from "./_components/DevAutoLogin";
 import "./styles/globals.css";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "3m Dashboard",
-  description: "Freelance money flow tracker"
+  description: "Freelance money flow tracker",
+  icons: {
+    icon: "/favicon.ico"
+  }
 };
 
 export default function RootLayout({
