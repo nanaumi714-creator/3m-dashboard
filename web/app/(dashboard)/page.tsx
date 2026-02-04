@@ -27,6 +27,16 @@ type Transaction = {
   } | null;
 };
 
+function getExpenseTypeBadge(tbi: Transaction["transaction_business_info"]): {
+  label: string;
+  className: string;
+} {
+  if (!tbi) return { label: "未判定", className: "bg-gray-100 text-gray-800" };
+  if (!tbi.is_business) return { label: "プライベート", className: "bg-purple-100 text-purple-800" };
+  if ((tbi.business_ratio ?? 100) < 100) return { label: `按分 ${tbi.business_ratio ?? 0}%`, className: "bg-blue-100 text-blue-800" };
+  return { label: "事業", className: "bg-blue-600 text-white" };
+}
+
 export default function DashboardPage() {
   const [summary, setSummary] = useState<Summary>({
     totalMonthly: 0,
@@ -210,9 +220,10 @@ export default function DashboardPage() {
               const dateObj = new Date(tx.occurred_on);
               const dateStr = `${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
               const isExpense = tx.amount_yen < 0;
+              const expenseType = getExpenseTypeBadge(tx.transaction_business_info);
 
               return (
-                <Link key={tx.id} href={`/transactions/${tx.id}`} className="flex items-center gap-4 group">
+                <Link key={tx.id} href={`/transactions/${tx.id}`} className="flex items-center gap-3 group">
                   <div className={cn(
                     "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-active:scale-95 shadow-sm",
                     !tx.transaction_business_info ? "bg-orange-50 text-orange-400" :
@@ -222,9 +233,18 @@ export default function DashboardPage() {
                       {tx.transaction_business_info?.is_business ? <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /> : <circle cx="12" cy="12" r="10" />}
                     </svg>
                   </div>
+                  <span className="w-12 text-xs text-gray-400 font-black text-left shrink-0">{dateStr}</span>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <h4 className="text-sm font-black text-gray-900 truncate tracking-tight">{tx.description}</h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-black text-gray-900 truncate tracking-tight min-w-0 flex-1">{tx.description}</h4>
+                      <div className="flex-1 flex justify-center">
+                        <span className={cn(
+                          "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap",
+                          expenseType.className
+                        )}>
+                          {expenseType.label}
+                        </span>
+                      </div>
                       <span className={cn(
                         "text-sm font-black tracking-tight shrink-0",
                         isExpense ? "text-gray-900" : "text-emerald-500"
@@ -232,9 +252,8 @@ export default function DashboardPage() {
                         {isExpense ? "" : "+"}¥{Math.abs(tx.amount_yen).toLocaleString()}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between mt-0.5">
-                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{tx.vendor_raw || "不明"}</span>
-                      <span className="text-[10px] text-gray-400 font-bold">{dateStr}</span>
+                    <div className="flex items-center mt-0.5">
+                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider truncate">{tx.vendor_raw || "不明"}</span>
                     </div>
                   </div>
                 </Link>

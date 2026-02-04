@@ -18,6 +18,16 @@ type Transaction = Database["public"]["Tables"]["transactions"]["Row"] & {
 
 type ExpenseCategory = Database["public"]["Tables"]["expense_categories"]["Row"];
 
+function getExpenseTypeBadge(tbi: Transaction["transaction_business_info"]): {
+  label: string;
+  className: string;
+} {
+  if (!tbi) return { label: "未判定", className: "bg-gray-100 text-gray-800" };
+  if (!tbi.is_business) return { label: "プライベート", className: "bg-purple-100 text-purple-800" };
+  if ((tbi.business_ratio ?? 100) < 100) return { label: `按分 ${tbi.business_ratio ?? 0}%`, className: "bg-blue-100 text-blue-800" };
+  return { label: "事業", className: "bg-blue-600 text-white" };
+}
+
 export default function TransactionsPage() {
   const [query, setQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -233,6 +243,7 @@ export default function TransactionsPage() {
                 {transactions.map(tx => {
                   const isExpense = tx.amount_yen < 0;
                   const tbi = tx.transaction_business_info;
+                  const expenseType = getExpenseTypeBadge(tbi);
                   return (
                     <tr key={tx.id} className={cn("hover:bg-blue-50/20 transition-colors", selectedIds.has(tx.id) && "bg-blue-50/40")}>
                       <td className="px-6 py-4"><input type="checkbox" checked={selectedIds.has(tx.id)} onChange={() => toggleSelection(tx.id)} className="rounded border-gray-200 text-blue-600 w-4 h-4" /></td>
@@ -241,8 +252,8 @@ export default function TransactionsPage() {
                       <td className="px-6 py-4 whitespace-nowrap"><span className="text-xs font-bold text-gray-500">{tx.payment_methods?.name || "-"}</span></td>
                       <td className="px-6 py-4 whitespace-nowrap text-right"><span className={cn("text-sm font-bold", isExpense ? "text-gray-900" : "text-emerald-500")}>{isExpense ? "-" : "+"}¥{Math.abs(tx.amount_yen).toLocaleString()}</span></td>
                       <td className="px-6 py-4">
-                        <span className={cn("inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest", !tbi ? "bg-orange-50 text-orange-600" : !tbi.is_business ? "bg-gray-100 text-gray-500" : "bg-blue-50 text-blue-600")}>
-                          {!tbi ? "未判定" : !tbi.is_business ? "通常" : "事業"}
+                        <span className={cn("inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap", expenseType.className)}>
+                          {expenseType.label}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -260,6 +271,7 @@ export default function TransactionsPage() {
             {transactions.map(tx => {
               const isExpense = tx.amount_yen < 0;
               const tbi = tx.transaction_business_info;
+              const expenseType = getExpenseTypeBadge(tbi);
               const dateObj = new Date(tx.occurred_on);
               const dateStr = `${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
 
@@ -273,10 +285,15 @@ export default function TransactionsPage() {
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /></svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
                         <h4 className="text-[12px] font-black text-gray-900 truncate tracking-tight">{tx.description}</h4>
                         <span className={cn("text-xs font-black tracking-tight shrink-0", isExpense ? "text-gray-900" : "text-emerald-500")}>
                           {isExpense ? "" : "+"}¥{Math.abs(tx.amount_yen).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="mb-1">
+                        <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap", expenseType.className)}>
+                          {expenseType.label}
                         </span>
                       </div>
                       <div className="flex items-center justify-between mt-0.5">

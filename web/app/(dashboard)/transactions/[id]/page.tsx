@@ -96,9 +96,9 @@ export default function TransactionDetailPage({
         setEditAmountYen(transactionRow.amount_yen.toString());
         setEditDescription(transactionRow.description);
         setEditVendorRaw(transactionRow.vendor_raw || "");
-        setEditPaymentMethodId(transactionRow.payment_method_id);
+        setEditPaymentMethodId(transactionRow.payment_method_id ?? "");
 
-        const businessInfo = transactionRow.transaction_business_info;
+        const businessInfo = businessInfoData;
         setEditIsBusiness(businessInfo?.is_business ?? true);
         setEditBusinessRatio((businessInfo?.business_ratio ?? 100).toString());
         setEditCategoryId(businessInfo?.category_id ?? "");
@@ -334,6 +334,7 @@ export default function TransactionDetailPage({
 
       if (updateError) throw updateError;
 
+      const judgedAt = new Date().toISOString();
       const { error: upsertError } = await supabase
         .from("transaction_business_info")
         .upsert({
@@ -343,24 +344,26 @@ export default function TransactionDetailPage({
           category_id: editCategoryId || null,
           audit_note: editAuditNote.trim() || null,
           judged_by: "gui",
-          judged_at: new Date().toISOString(),
+          judged_at: judgedAt,
         });
 
       if (upsertError) throw upsertError;
 
       setTransaction((prev) => {
         if (!prev) return prev;
-        const nextBusinessInfo: BusinessInfo | null = prev.transaction_business_info
-          ? {
-            ...prev.transaction_business_info,
-            is_business: editIsBusiness,
-            business_ratio: ratio,
-            category_id: editCategoryId || null,
-            audit_note: editAuditNote.trim() || null,
-            judged_by: "gui",
-            judged_at: new Date().toISOString(),
-          }
-          : null;
+        const nextBusinessInfo: BusinessInfo = {
+          ...(prev.transaction_business_info ?? {
+            transaction_id: params.id,
+            created_at: judgedAt,
+            user_id: null,
+          }),
+          is_business: editIsBusiness,
+          business_ratio: ratio,
+          category_id: editCategoryId || null,
+          audit_note: editAuditNote.trim() || null,
+          judged_by: "gui",
+          judged_at: judgedAt,
+        };
         return {
           ...prev,
           occurred_on: editOccurredOn,
