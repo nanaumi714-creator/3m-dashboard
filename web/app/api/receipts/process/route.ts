@@ -77,7 +77,7 @@ async function getSupabaseClient(request: Request) {
 
     if (!userId && process.env.NEXT_PUBLIC_DISABLE_AUTH === "true") {
         console.warn("Auth disabled: Using service role for receipt process.");
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+        const supabaseUrl = process.env.SUPABASE_URL!;
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
         if (serviceRoleKey) {
             const { createClient } = await import("@supabase/supabase-js");

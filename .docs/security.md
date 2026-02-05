@@ -37,16 +37,30 @@ Supabase Dashboard > Authentication > Policies:
 
 ## 環境変数管理
 
+### 命名規則 (公開/非公開)
+
+- `NEXT_PUBLIC_` が付く変数のみブラウザへ公開されます。
+- サーバー専用キー（OpenAI/Gmail/Google Vision など）は **必ず** `NEXT_PUBLIC_` を付けません。
+
 ### 機密情報
 
 以下は `.env.local` で管理（Git管理外）:
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `GOOGLE_APPLICATION_CREDENTIALS`
+- `GOOGLE_VISION_API_KEY`
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL`
+- `GMAIL_CREDENTIALS_PATH`
+- `GOOGLE_CREDENTIALS`
 
 ### 公開可能
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_DISABLE_AUTH` (開発用)
+- `NEXT_PUBLIC_DEV_LOGIN_EMAIL` (開発用)
+- `NEXT_PUBLIC_DEV_LOGIN_PASSWORD` (開発用)
+- `NEXT_PUBLIC_DEV_AUTO_SIGNUP` (開発用)
 
 ---
 
