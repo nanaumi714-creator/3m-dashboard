@@ -50,7 +50,7 @@ export default function ReceiptReviewPage() {
   const initialVendor = searchParams.get("vendorName") || "";
   const suggestionSummary = useMemo(
     () => ({
-      occurredOn: initialOccurredOn || "-",
+      occurredOn: initialOccurredOn || "日付未入力",
       amountYen: initialAmount || "-",
       vendorName: initialVendor || "-",
     }),
@@ -66,6 +66,8 @@ export default function ReceiptReviewPage() {
   const [businessRatio, setBusinessRatio] = useState("100");
   const [isBusiness, setIsBusiness] = useState(true);
   const [matchedVendorName, setMatchedVendorName] = useState<string | null>(null);
+  const isDateMissing = !occurredOn;
+  const isSuggestedDateMissing = !initialOccurredOn;
 
   const ocrPreview = useMemo(() => {
     if (!receipt?.ocr_text) return "OCRテキストがまだありません。";
@@ -283,15 +285,25 @@ export default function ReceiptReviewPage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
                       取引日
+                      {isDateMissing && (
+                        <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-widest uppercase">
+                          日付未入力
+                        </span>
+                      )}
                     </label>
                     <input
                       type="date"
                       value={occurredOn}
                       onChange={(event) => setOccurredOn(event.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={`w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isDateMissing ? "border-red-300 bg-red-50/50" : "border-gray-300"}`}
                     />
+                    {isDateMissing && (
+                      <p className="mt-2 text-xs font-medium text-red-600">
+                        取引日が未入力です。保存前に必ず入力してください。
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -446,7 +458,15 @@ export default function ReceiptReviewPage() {
               <dl className="space-y-2 text-sm text-gray-700">
                 <div className="flex justify-between">
                   <dt className="text-gray-500">取引日</dt>
-                  <dd>{suggestionSummary.occurredOn}</dd>
+                  <dd>
+                    {isSuggestedDateMissing ? (
+                      <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-widest uppercase">
+                        日付未入力
+                      </span>
+                    ) : (
+                      suggestionSummary.occurredOn
+                    )}
+                  </dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-gray-500">金額</dt>

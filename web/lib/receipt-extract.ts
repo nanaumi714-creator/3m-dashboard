@@ -54,10 +54,8 @@ function extractFallback(ocrText: string): ReceiptExtract {
     .sort((a, b) => b - a)[0];
   const vendorMatch = ocrText.split("\n").find((line) => line.trim().length > 1) || null;
 
-  const today = new Date().toISOString().split('T')[0];
-
   return {
-    occurredOn: normalizeDate(dateMatch?.[1] ?? null) || today,
+    occurredOn: normalizeDate(dateMatch?.[1] ?? null),
     amountYen: normalizeAmount(amountValue ?? null),
     vendorName: vendorMatch ? vendorMatch.trim().slice(0, 40) : null,
     description: null,
@@ -184,10 +182,8 @@ export async function extractReceiptFields(
     const paymentMethodHint =
       typeof json.paymentMethodHint === "string" ? json.paymentMethodHint.trim() : null;
 
-    const today = new Date().toISOString().split('T')[0];
-
     return {
-      occurredOn: occurredOn || today,
+      occurredOn,
       amountYen,
       vendorName: vendorName || null,
       description: description || null,
