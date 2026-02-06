@@ -5,6 +5,7 @@ export type ReceiptExtract = {
   description: string | null;
   categoryHint: string | null;
   paymentMethodHint: string | null;
+  memo: string | null;
   source: "llm" | "fallback";
 };
 
@@ -19,6 +20,32 @@ type OpenAiResponse = {
       content?: string | null;
     };
   }>;
+};
+
+type ExtractContext = {
+  categoryList: string[];
+  paymentMethodList: string[];
+};
+
+type LlmItem = {
+  name?: string;
+  quantity?: number;
+  unit_price?: number;
+  line_total?: number;
+};
+
+type LlmReceipt = {
+  occurred_on?: string;
+  total_amount?: number;
+  vendor_name?: string;
+  memo?: string;
+  category?: string;
+  payment_method?: string;
+};
+
+type LlmPayload = {
+  receipt?: LlmReceipt;
+  items?: LlmItem[];
 };
 
 function normalizeDate(value: string | null | undefined): string | null {
@@ -43,26 +70,61 @@ function normalizeAmount(value: string | number | null | undefined): number | nu
   return Math.abs(Math.round(parsed));
 }
 
+function containsUnknownOption(list: string[]): string | null {
+  const unknown = list.find((entry) => entry.toLowerCase() === "unknown");
+  return unknown ?? null;
+}
+
+function normalizeCandidate(
+  candidate: string | undefined,
+  allowedList: string[]
+): string | null {
+  if (!candidate) {
+    return null;
+  }
+
+  const trimmed = candidate.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const exact = allowedList.find((allowed) => allowed === trimmed);
+  if (exact) {
+    return exact;
+  }
+
+  const unknown = containsUnknownOption(allowedList);
+  return unknown;
+}
+
+function sumItemTotals(items: LlmItem[] | undefined): number | null {
+  if (!items || items.length === 0) return null;
+  const totals = items
+    .map((item) => normalizeAmount(item.line_total))
+    .filter((value): value is number => Number.isFinite(value));
+
+  if (totals.length === 0) return null;
+  return totals.reduce((acc, value) => acc + value, 0);
+}
+
 function extractFallback(ocrText: string): ReceiptExtract {
-  const dateMatch = ocrText.match(/(\d{4}[\/-]\d{1,2}[\/-]\d{1,2})/);
   const amountMatches = Array.from(
     ocrText.matchAll(/(?:¥|￥)?\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{2,})\s*(?:円|JPY)?/g)
   ).map((match) => match[1].replace(/,/g, ""));
+
   const amountValue = amountMatches
     .map((value) => Number(value))
     .filter((value) => Number.isFinite(value))
     .sort((a, b) => b - a)[0];
-  const vendorMatch = ocrText.split("\n").find((line) => line.trim().length > 1) || null;
-
-  const today = new Date().toISOString().split('T')[0];
 
   return {
-    occurredOn: normalizeDate(dateMatch?.[1] ?? null) || today,
+    occurredOn: null,
     amountYen: normalizeAmount(amountValue ?? null),
-    vendorName: vendorMatch ? vendorMatch.trim().slice(0, 40) : null,
+    vendorName: null,
     description: null,
     categoryHint: null,
     paymentMethodHint: null,
+    memo: null,
     source: "fallback",
   };
 }
@@ -81,23 +143,83 @@ function parseJsonCandidate(content: string): Record<string, unknown> | null {
   }
 }
 
-const SYSTEM_PROMPT = `あなたは日本のレシート・領収書からデータを抽出するアシスタントです。
-以下のOCRテキストから情報を抽出し、JSON形式で返してください。
+const SYSTEM_PROMPT = `You are a data-normalization engine for receipt OCR.
 
-必須フィールド:
-- occurredOn: 取引日（YYYY-MM-DD形式、不明ならnull）
-- amountYen: 合計金額（数値、税込み合計を優先、不明ならnull）
-- vendorName: 店舗名・取引先名（文字列、不明ならnull）
+Return ONLY valid JSON.
+Do not include markdown, comments, or explanations.
 
-オプションフィールド:
-- description: 購入内容の簡潔な説明（例: "コンビニ購入"、"ガソリン代"）
-- categoryHint: 経費カテゴリの推測（例: "事務用品", "交通費", "会議費", "通信費"）
-- paymentMethodHint: 支払い方法の推測（例: "現金", "カード", "電子マネー", "銀行振込", "QR決済"）
+STRICT RULES:
+- The output MUST conform exactly to the provided JSON schema.
+- Do NOT invent category names or payment methods.
+- receipt.category MUST be one of the provided category list.
+- receipt.payment_method MUST be one of the provided payment method list.
+- If no valid value can be determined, use "unknown" ONLY if it exists in the provided list.
+- All monetary values MUST be integers in JPY.
+- Do NOT output null. Omit optional fields if unknown.
 
-JSONのみを返してください。説明文は不要です。`;
+DATA NORMALIZATION RULES:
+- Prices are tax-included (税込) unless explicitly stated otherwise.
+- If quantity is missing, assume quantity = 1.
+- If an item line includes a number (e.g. "牛乳 2"), interpret it as quantity.
+- Do NOT merge identical item lines.
+- If OCR text is partially garbled, infer conservatively using common Japanese receipt patterns.
+- Do NOT guess missing dates, phone numbers, or store names. Omit them if unclear.
+
+CONSISTENCY RULE:
+- If receipt totals are present, the sum of item prices MUST equal receipt.total_amount.
+- If adjustment is required, modify ONLY the most ambiguous item prices.
+- Any adjustment MUST be explained briefly in receipt.memo.`;
+
+function buildUserPrompt(
+  ocrText: string,
+  categoryList: string[],
+  paymentMethodList: string[]
+): string {
+  const categoryLines = categoryList.length > 0 ? categoryList.join("\n") : "(none)";
+  const paymentMethodLines =
+    paymentMethodList.length > 0 ? paymentMethodList.join("\n") : "(none)";
+
+  return `【参照マスタ】
+有効なカテゴリ一覧（この中から1つだけ選択）:
+${categoryLines}
+
+有効な支払手段一覧（この中から1つだけ選択）:
+${paymentMethodLines}
+
+【OCRテキスト】
+<<<
+${ocrText}
+>>>
+
+上記OCRテキストを解析し、
+参照マスタに厳密に従って、
+以下のJSON構造で出力せよ。
+JSON以外は一切出力してはならない。
+
+JSON schema:
+{
+  "receipt": {
+    "occurred_on": "YYYY-MM-DD",
+    "total_amount": 0,
+    "vendor_name": "string",
+    "memo": "string",
+    "category": "string",
+    "payment_method": "string"
+  },
+  "items": [
+    {
+      "name": "string",
+      "quantity": 1,
+      "unit_price": 0,
+      "line_total": 0
+    }
+  ]
+}`;
+}
 
 export async function extractReceiptFields(
-  ocrText: string
+  ocrText: string,
+  context: ExtractContext
 ): Promise<ReceiptExtract> {
   const trimmedText = ocrText.trim();
   if (!trimmedText) {
@@ -108,6 +230,7 @@ export async function extractReceiptFields(
       description: null,
       categoryHint: null,
       paymentMethodHint: null,
+      memo: null,
       source: "fallback",
     };
   }
@@ -127,7 +250,11 @@ export async function extractReceiptFields(
     },
     {
       role: "user",
-      content: `OCRテキスト:\n${trimmedText}`,
+      content: buildUserPrompt(
+        trimmedText,
+        context.categoryList,
+        context.paymentMethodList
+      ),
     },
   ];
 
@@ -151,7 +278,7 @@ export async function extractReceiptFields(
       console.error("OpenAI API error details:", {
         status: response.status,
         statusText: response.statusText,
-        body: errorBody
+        body: errorBody,
       });
       return extractFallback(trimmedText);
     }
@@ -167,32 +294,38 @@ export async function extractReceiptFields(
       return extractFallback(trimmedText);
     }
 
-    const occurredOn = normalizeDate(
-      typeof json.occurredOn === "string" ? json.occurredOn : null
-    );
-    const amountYen = normalizeAmount(
-      typeof json.amountYen === "number" || typeof json.amountYen === "string"
-        ? (json.amountYen as string | number)
-        : null
-    );
-    const vendorName =
-      typeof json.vendorName === "string" ? json.vendorName.trim() : null;
-    const description =
-      typeof json.description === "string" ? json.description.trim() : null;
-    const categoryHint =
-      typeof json.categoryHint === "string" ? json.categoryHint.trim() : null;
-    const paymentMethodHint =
-      typeof json.paymentMethodHint === "string" ? json.paymentMethodHint.trim() : null;
+    const payload = json as LlmPayload;
+    const occurredOn = normalizeDate(payload.receipt?.occurred_on);
+    const totalAmount = normalizeAmount(payload.receipt?.total_amount);
+    const itemTotal = sumItemTotals(payload.items);
+    const amountYen = totalAmount ?? itemTotal;
 
-    const today = new Date().toISOString().split('T')[0];
+    const vendorName =
+      typeof payload.receipt?.vendor_name === "string"
+        ? payload.receipt.vendor_name.trim()
+        : null;
+
+    const memo =
+      typeof payload.receipt?.memo === "string" ? payload.receipt.memo.trim() : null;
+
+    const categoryHint = normalizeCandidate(
+      payload.receipt?.category,
+      context.categoryList
+    );
+
+    const paymentMethodHint = normalizeCandidate(
+      payload.receipt?.payment_method,
+      context.paymentMethodList
+    );
 
     return {
-      occurredOn: occurredOn || today,
+      occurredOn,
       amountYen,
       vendorName: vendorName || null,
-      description: description || null,
-      categoryHint: categoryHint || null,
-      paymentMethodHint: paymentMethodHint || null,
+      description: memo || null,
+      categoryHint,
+      paymentMethodHint,
+      memo: memo || null,
       source: "llm",
     };
   } catch (error) {

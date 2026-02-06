@@ -15,7 +15,12 @@ type AnalyzeResponse = {
     description: string | null;
     categoryHint: string | null;
     paymentMethodHint: string | null;
+    memo: string | null;
     source: "llm" | "fallback";
+  };
+  hints: {
+    matchedCategoryId: string | null;
+    matchedPaymentMethodId: string | null;
   };
 };
 
@@ -95,6 +100,14 @@ export default function ReceiptUploadPage() {
       if (ext.vendorName) setVendorName(ext.vendorName);
       if (ext.description || ext.vendorName) setDescription(ext.description || ext.vendorName || "");
 
+      if (data.hints.matchedCategoryId) {
+        setCategoryId(data.hints.matchedCategoryId);
+      }
+
+      if (data.hints.matchedPaymentMethodId) {
+        setPaymentMethodId(data.hints.matchedPaymentMethodId);
+      }
+
       setStep("review");
     } catch (error) {
       setErrorMessage("画像の解析に失敗しました。もう一度お試しください。");
@@ -120,8 +133,9 @@ export default function ReceiptUploadPage() {
       if (!response.ok) throw new Error("保存に失敗しました。");
       const payload = await response.json();
       router.push(`/receipts/complete/${payload.transactionId}`);
-    } catch (error: any) {
-      setErrorMessage(error.message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "保存に失敗しました。";
+      setErrorMessage(message);
       setIsSaving(false);
     }
   }
@@ -192,6 +206,9 @@ export default function ReceiptUploadPage() {
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
+              <p className="text-[10px] font-bold text-blue-500 ml-1">
+                AIの提案値は候補です。最終決定は必ずご自身で確認してください。
+              </p>
             </div>
           </div>
 
@@ -212,7 +229,7 @@ export default function ReceiptUploadPage() {
                 </div>
               )}
             </div>
-            <select value={isBusiness} onChange={(e: any) => setIsBusiness(e.target.value)} className="w-full bg-white border-none rounded-2xl px-5 py-4 font-black text-blue-900 text-xs appearance-none mb-4">
+            <select value={isBusiness} onChange={(event) => setIsBusiness(event.target.value as "business" | "personal" | "pending")} className="w-full bg-white border-none rounded-2xl px-5 py-4 font-black text-blue-900 text-xs appearance-none mb-4">
               <option value="business">事業経費</option>
               <option value="personal">通常支出</option>
               <option value="pending">後で判定</option>
