@@ -171,17 +171,36 @@ cp .env.example .env.local
 `.env.local` を編集:
 
 ```env
-# Supabase
+# Supabase (public/client)
 NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
-# OCR (オプション)
+# Supabase (server-only)
+SUPABASE_URL=http://localhost:54321
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# OCR (オプション, server-only)
 OCR_MONTHLY_LIMIT=100
 GOOGLE_VISION_API_KEY=AIzaSy...
 
 # その他
 NODE_ENV=development
 ```
+
+**公開/非公開の命名ルール**
+
+- `NEXT_PUBLIC_` が付く環境変数のみブラウザへ公開されます。
+- サーバー専用キー（OpenAI/Gmail/Google Vision など）は **必ず** `NEXT_PUBLIC_` を付けずに管理します。
+
+**クライアントで使用している `NEXT_PUBLIC_` 変数**
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_DISABLE_AUTH`（開発時のみ）
+- `NEXT_PUBLIC_DEV_LOGIN_EMAIL`（開発時のみ）
+- `NEXT_PUBLIC_DEV_LOGIN_PASSWORD`（開発時のみ）
+- `NEXT_PUBLIC_DEV_AUTO_SIGNUP`（開発時のみ）
 
 ```bash
 # 開発サーバー起動
@@ -328,7 +347,7 @@ npm run type-check
 
 1. Supabase Cloud ????????????????
 2. `web/` ? Vercel ?????
-3. Vercel ?????? `NEXT_PUBLIC_SUPABASE_URL` ? `NEXT_PUBLIC_SUPABASE_ANON_KEY` ? `SUPABASE_SERVICE_ROLE_KEY` ???
+3. Vercel ?????? `NEXT_PUBLIC_SUPABASE_URL` ? `NEXT_PUBLIC_SUPABASE_ANON_KEY` ? `SUPABASE_URL` ? `SUPABASE_ANON_KEY` ? `SUPABASE_SERVICE_ROLE_KEY` ???
 
 ---
 
@@ -359,6 +378,9 @@ npm run type-check
 機密情報は `.env.local` (Git管理外) で管理:
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `GOOGLE_APPLICATION_CREDENTIALS`
+- `GOOGLE_VISION_API_KEY`
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL`
 
 詳細は [security.md](.docs/security.md) を参照
 

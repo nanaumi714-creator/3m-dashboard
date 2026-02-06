@@ -8,9 +8,8 @@ import { Database } from "@/lib/database.types";
 
 const MAX_MONTHLY_OCR_PAGES = Number(process.env.OCR_MONTHLY_LIMIT || "1000");
 
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabaseUrl = process.env.SUPABASE_URL || "http://127.0.0.1:54321";
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "";
 
 function sanitizeFilename(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");

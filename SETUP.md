@@ -23,6 +23,8 @@
    ```env
    NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
    NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key from step 1>
+   SUPABASE_URL=http://127.0.0.1:54321
+   SUPABASE_ANON_KEY=<anon key from step 1>
    SUPABASE_SERVICE_ROLE_KEY=<service_role key from step 1>
    ```
 
@@ -48,8 +50,20 @@
 
 - ✅ `NEXT_PUBLIC_*` variables are safe for browser (public)
 - ❌ `SUPABASE_SERVICE_ROLE_KEY` must NEVER have `NEXT_PUBLIC_` prefix
+- ❌ Server-only keys (OpenAI/Gmail/Google Vision, etc.) must NOT use `NEXT_PUBLIC_`
 - ✅ `.env.local` and `.env` are already in `.gitignore`
 - ✅ Use `.env.example` for documentation (no real secrets)
+
+### Client-visible environment variables
+
+The following `NEXT_PUBLIC_` variables are referenced by the web client:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_DISABLE_AUTH` (dev only)
+- `NEXT_PUBLIC_DEV_LOGIN_EMAIL` (dev only)
+- `NEXT_PUBLIC_DEV_LOGIN_PASSWORD` (dev only)
+- `NEXT_PUBLIC_DEV_AUTO_SIGNUP` (dev only)
 
 ## Troubleshooting
 

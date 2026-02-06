@@ -76,6 +76,8 @@
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbG...
+SUPABASE_URL=https://xxxxx.supabase.co
+SUPABASE_ANON_KEY=eyJhbG...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbG... # サーバーサイドのみ
 ```
 
@@ -130,6 +132,8 @@ Vercelダッシュボードで：
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbG...
+SUPABASE_URL=https://xxxxx.supabase.co
+SUPABASE_ANON_KEY=eyJhbG...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbG...
 OCR_MONTHLY_LIMIT=100
 GOOGLE_APPLICATION_CREDENTIALS=（後述）
@@ -374,23 +378,32 @@ npx @sentry/wizard@latest -i nextjs
 
 ## 📝 環境変数一覧
 
-### 必須
+### 公開 (クライアントで参照される `NEXT_PUBLIC_`)
 
 | 変数名 | 取得元 | 用途 |
 |--------|--------|------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase | データベース接続 |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase | クライアント認証 |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase | ブラウザからのSupabase接続 |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase | ブラウザ用 anon key |
+| `NEXT_PUBLIC_DISABLE_AUTH` | 任意 | 開発用の認証無効化 |
+| `NEXT_PUBLIC_DEV_LOGIN_EMAIL` | 任意 | 開発用自動ログイン |
+| `NEXT_PUBLIC_DEV_LOGIN_PASSWORD` | 任意 | 開発用自動ログイン |
+| `NEXT_PUBLIC_DEV_AUTO_SIGNUP` | 任意 | 開発用自動サインアップ |
+
+### 非公開 (サーバー専用・`NEXT_PUBLIC_` 禁止)
+
+| 変数名 | 取得元 | 用途 |
+|--------|--------|------|
+| `SUPABASE_URL` | Supabase | サーバー側のSupabase接続 |
+| `SUPABASE_ANON_KEY` | Supabase | サーバー側の anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase | サーバーサイド操作 |
-
-### オプション
-
-| 変数名 | 取得元 | 用途 |
-|--------|--------|------|
-| `GOOGLE_APPLICATION_CREDENTIALS` | GCP | OCR処理 |
+| `GOOGLE_VISION_API_KEY` | GCP | OCR処理 |
+| `OPENAI_API_KEY` | OpenAI | レシート抽出 |
+| `OPENAI_MODEL` | OpenAI | レシート抽出モデル |
+| `GOOGLE_APPLICATION_CREDENTIALS` | GCP | OCR処理 (代替) |
 | `OCR_MONTHLY_LIMIT` | 任意 | OCR上限設定 |
 | `GMAIL_CREDENTIALS_PATH` | GCP | Gmail連携 |
+| `GOOGLE_CREDENTIALS` | GCP | Gmail連携 (Vercel用) |
 | `CRON_SECRET` | 任意 | Cron保護 |
-| `NEXT_PUBLIC_SENTRY_DSN` | Sentry | エラーログ |
 | `SENTRY_AUTH_TOKEN` | Sentry | ソースマップ |
 
 ---

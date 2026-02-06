@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   } else if (process.env.NEXT_PUBLIC_DISABLE_AUTH === "true") {
     // Fallback for local development without auth
     console.warn("Auth disabled: Using service role for receipt upload.");
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseUrl = process.env.SUPABASE_URL!;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (serviceRoleKey) {
