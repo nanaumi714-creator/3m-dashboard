@@ -8,7 +8,8 @@ set user_id = (
   order by created_at
   limit 1
 )
-where user_id is null;
+where user_id is null
+  and exists (select 1 from auth.users);
 
 update payment_methods
 set user_id = (
@@ -17,7 +18,8 @@ set user_id = (
   order by created_at
   limit 1
 )
-where user_id is null;
+where user_id is null
+  and exists (select 1 from auth.users);
 
 -- Ensure new records default to the current user.
 alter table payment_methods
