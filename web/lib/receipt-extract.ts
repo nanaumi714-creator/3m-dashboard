@@ -108,6 +108,7 @@ function sumItemTotals(items: LlmItem[] | undefined): number | null {
 }
 
 function extractFallback(ocrText: string): ReceiptExtract {
+  const dateMatch = ocrText.match(/(\d{4}[\/.-]\d{1,2}[\/.-]\d{1,2})/);
   const amountMatches = Array.from(
     ocrText.matchAll(/(?:¥|￥)?\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{2,})\s*(?:円|JPY)?/g)
   ).map((match) => match[1].replace(/,/g, ""));
