@@ -15,7 +15,12 @@ type AnalyzeResponse = {
     description: string | null;
     categoryHint: string | null;
     paymentMethodHint: string | null;
+    memo: string | null;
     source: "llm" | "fallback";
+  };
+  hints: {
+    matchedCategoryId: string | null;
+    matchedPaymentMethodId: string | null;
   };
 };
 
@@ -26,6 +31,7 @@ export default function ReceiptUploadPage() {
   const router = useRouter();
   const [step, setStep] = useState<"upload" | "review">("upload");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -84,22 +90,60 @@ export default function ReceiptUploadPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("runAi", "false");
       const response = await fetch("/api/receipts/analyze", { method: "POST", body: formData });
       if (!response.ok) throw new Error("解析に失敗しました。");
       const data = (await response.json()) as AnalyzeResponse;
-      const ext = data.extraction;
-
       setOcrText(data.ocr.text || "");
-      if (ext.occurredOn) setOccurredOn(ext.occurredOn);
-      if (ext.amountYen) setAmountYen(String(ext.amountYen));
-      if (ext.vendorName) setVendorName(ext.vendorName);
-      if (ext.description || ext.vendorName) setDescription(ext.description || ext.vendorName || "");
-
       setStep("review");
     } catch (error) {
       setErrorMessage("画像の解析に失敗しました。もう一度お試しください。");
     } finally {
       setIsAnalyzing(false);
+    }
+  }
+
+
+  async function handleAiAnalyze() {
+    if (!selectedFile && !ocrText.trim()) {
+      setErrorMessage("先にOCRを実行してください。");
+      return;
+    }
+
+    setIsAiAnalyzing(true);
+    setErrorMessage(null);
+
+    try {
+      const formData = new FormData();
+      if (selectedFile) {
+        formData.append("file", selectedFile);
+      }
+      formData.append("ocrText", ocrText);
+      formData.append("runAi", "true");
+
+      const response = await fetch("/api/receipts/analyze", { method: "POST", body: formData });
+      if (!response.ok) throw new Error("AI解析に失敗しました。");
+
+      const data = (await response.json()) as AnalyzeResponse;
+      const ext = data.extraction;
+
+      if (ext.occurredOn) setOccurredOn(ext.occurredOn);
+      if (ext.amountYen) setAmountYen(String(ext.amountYen));
+      if (ext.vendorName) setVendorName(ext.vendorName);
+      if (ext.description || ext.vendorName) setDescription(ext.description || ext.vendorName || "");
+
+      if (data.hints.matchedCategoryId) {
+        setCategoryId(data.hints.matchedCategoryId);
+      }
+
+      if (data.hints.matchedPaymentMethodId) {
+        setPaymentMethodId(data.hints.matchedPaymentMethodId);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "AI解析に失敗しました。";
+      setErrorMessage(message);
+    } finally {
+      setIsAiAnalyzing(false);
     }
   }
 
@@ -120,8 +164,9 @@ export default function ReceiptUploadPage() {
       if (!response.ok) throw new Error("保存に失敗しました。");
       const payload = await response.json();
       router.push(`/receipts/complete/${payload.transactionId}`);
-    } catch (error: any) {
-      setErrorMessage(error.message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "保存に失敗しました。";
+      setErrorMessage(message);
       setIsSaving(false);
     }
   }
@@ -143,7 +188,7 @@ export default function ReceiptUploadPage() {
             className="w-full bg-gray-900 text-white p-6 rounded-[32px] font-black text-sm active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-4"
           >
             {isAnalyzing ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>}
-            {isAnalyzing ? "解析中..." : "画像を選択して開始"}
+            {isAnalyzing ? "OCR実行中..." : "画像を選択してOCR実行"}
           </button>
           <input ref={fileInputRef} type="file" accept="image/*,application/pdf" onChange={handleFileChange} className="hidden" />
           {errorMessage && <p className="mt-6 text-[10px] font-black text-red-500 uppercase">{errorMessage}</p>}
@@ -154,10 +199,21 @@ export default function ReceiptUploadPage() {
 
   return (
     <div className="max-w-4xl mx-auto pb-24 px-1 md:px-4 overflow-x-hidden">
-      <div className="mb-8 px-2">
+      <div className="mb-8 px-2 space-y-4">
         <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">解析結果の確認</h1>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">OCR結果の確認</h1>
           <span className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest">Completed</span>
+        </div>
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <p className="text-xs font-bold text-gray-600">OCR結果を確認後、必要な場合のみAI解析を実行できます。</p>
+          <button
+            type="button"
+            onClick={handleAiAnalyze}
+            disabled={isAiAnalyzing}
+            className="bg-blue-600 text-white px-6 py-3 rounded-2xl hover:bg-blue-700 transition-all font-bold shadow-lg shadow-blue-100 active:scale-[0.98] disabled:opacity-60"
+          >
+            {isAiAnalyzing ? "AI解析中..." : "AI解析を実行"}
+          </button>
         </div>
       </div>
 
@@ -192,6 +248,9 @@ export default function ReceiptUploadPage() {
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
+              <p className="text-[10px] font-bold text-blue-500 ml-1">
+                AIの提案値は候補です。最終決定は必ずご自身で確認してください。
+              </p>
             </div>
           </div>
 
@@ -212,7 +271,7 @@ export default function ReceiptUploadPage() {
                 </div>
               )}
             </div>
-            <select value={isBusiness} onChange={(e: any) => setIsBusiness(e.target.value)} className="w-full bg-white border-none rounded-2xl px-5 py-4 font-black text-blue-900 text-xs appearance-none mb-4">
+            <select value={isBusiness} onChange={(event) => setIsBusiness(event.target.value as "business" | "personal" | "pending")} className="w-full bg-white border-none rounded-2xl px-5 py-4 font-black text-blue-900 text-xs appearance-none mb-4">
               <option value="business">事業経費</option>
               <option value="personal">通常支出</option>
               <option value="pending">後で判定</option>
