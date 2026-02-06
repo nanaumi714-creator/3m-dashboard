@@ -12,10 +12,15 @@ export async function runEdgeOcr(
   mimeType: string | null
 ): Promise<OcrEdgeResponse> {
   const supabaseUrl = process.env.SUPABASE_URL || "http://127.0.0.1:54321";
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "";
+  const supabaseAnonKey =
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    "";
 
   if (!supabaseAnonKey) {
-    throw new Error("SUPABASE_ANON_KEY is not set.");
+    throw new Error(
+      "SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY) is not set."
+    );
   }
 
   const response = await fetch(`${supabaseUrl}/functions/v1/ocr-processor`, {
