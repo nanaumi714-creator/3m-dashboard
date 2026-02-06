@@ -20,9 +20,47 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get("file");
+    const runAi = formData.get("runAi") === "true";
+    const inputOcrText = formData.get("ocrText");
+    const providedOcrText = typeof inputOcrText === "string" ? inputOcrText.trim() : null;
 
-    if (!(file instanceof File)) {
-      return NextResponse.json({ error: "file is required." }, { status: 400 });
+    if (!(file instanceof File) && !providedOcrText) {
+      return NextResponse.json({ error: "file or ocrText is required." }, { status: 400 });
+    }
+
+    let ocrText: string | null = providedOcrText;
+    let ocrConfidence: number | null = null;
+
+    if (!ocrText && file instanceof File) {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const base64Image = buffer.toString("base64");
+
+      const ocrResult = await runGoogleVisionOcr(
+        base64Image,
+        file.type || null
+      );
+      ocrText = ocrResult.text ?? null;
+      ocrConfidence = ocrResult.confidence;
+    }
+
+    if (!runAi) {
+      return NextResponse.json({
+        ocr: { text: ocrText, confidence: ocrConfidence },
+        extraction: {
+          occurredOn: null,
+          amountYen: null,
+          vendorName: null,
+          description: null,
+          categoryHint: null,
+          paymentMethodHint: null,
+          memo: null,
+          source: "fallback" as const,
+        },
+        hints: {
+          matchedCategoryId: null,
+          matchedPaymentMethodId: null,
+        },
+      });
     }
 
     const supabase = createServerClient();
@@ -50,14 +88,6 @@ export async function POST(request: Request) {
 
     const paymentMethods = (paymentMethodResult.data ?? []) as NameOption[];
     const categories = (categoryResult.data ?? []) as NameOption[];
-
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const base64Image = buffer.toString("base64");
-
-    const { text: ocrText, confidence: ocrConfidence } = await runGoogleVisionOcr(
-      base64Image,
-      file.type || null
-    );
 
     const extraction = ocrText
       ? await extractReceiptFields(ocrText, {
