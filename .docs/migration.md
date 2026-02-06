@@ -98,6 +98,9 @@ Vercel Dashboard > Settings > Environment Variables で設定:
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
 OCR_MONTHLY_LIMIT=100
 GOOGLE_APPLICATION_CREDENTIALS=/var/task/credentials.json
 ```
@@ -151,6 +154,9 @@ SELECT * FROM transactions WHERE id = ...;
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
 ```
 
 ### 2. Dockerコンテナ停止
