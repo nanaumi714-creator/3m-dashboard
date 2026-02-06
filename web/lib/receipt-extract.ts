@@ -108,6 +108,7 @@ function sumItemTotals(items: LlmItem[] | undefined): number | null {
 }
 
 function extractFallback(ocrText: string): ReceiptExtract {
+  const dateMatch = ocrText.match(/(\d{4}[\/.-]\d{1,2}[\/.-]\d{1,2})/);
   const amountMatches = Array.from(
     ocrText.matchAll(/(?:¥|￥)?\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{2,})\s*(?:円|JPY)?/g)
   ).map((match) => match[1].replace(/,/g, ""));
@@ -116,9 +117,10 @@ function extractFallback(ocrText: string): ReceiptExtract {
     .map((value) => Number(value))
     .filter((value) => Number.isFinite(value))
     .sort((a, b) => b - a)[0];
+  const vendorMatch = ocrText.split("\n").find((line) => line.trim().length > 1) || null;
 
   return {
-    occurredOn: null,
+    occurredOn: normalizeDate(dateMatch?.[1] ?? null),
     amountYen: normalizeAmount(amountValue ?? null),
     vendorName: null,
     description: null,

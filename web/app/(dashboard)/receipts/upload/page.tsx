@@ -53,6 +53,7 @@ export default function ReceiptUploadPage() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const isDateMissing = !occurredOn;
 
   useEffect(() => {
     async function loadOptions() {
@@ -149,7 +150,7 @@ export default function ReceiptUploadPage() {
 
   async function handleSave() {
     if (!selectedFile || !occurredOn || !amountYen || !paymentMethodId || !vendorName.trim()) {
-      setErrorMessage("必須項目を入力してください。");
+      setErrorMessage(isDateMissing ? "取引日を入力してください。" : "必須項目を入力してください。");
       return;
     }
     setIsSaving(true);
@@ -223,8 +224,28 @@ export default function ReceiptUploadPage() {
             <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block border-b border-gray-50 pb-4">Transaction Details</span>
             <div className="space-y-5">
               <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-2">取引日</label>
-                <input type="date" value={occurredOn} onChange={(e) => setOccurredOn(e.target.value)} className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 font-bold text-gray-900" />
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-2 mb-2">
+                  取引日
+                  {isDateMissing && (
+                    <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-full text-[9px] font-black tracking-widest uppercase">
+                      日付未入力
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="date"
+                  value={occurredOn}
+                  onChange={(e) => setOccurredOn(e.target.value)}
+                  className={cn(
+                    "w-full bg-gray-50 border-none rounded-2xl px-5 py-4 font-bold text-gray-900",
+                    isDateMissing && "ring-2 ring-red-200"
+                  )}
+                />
+                {isDateMissing && (
+                  <p className="mt-2 text-[10px] font-bold text-red-600">
+                    取引日が未入力です。保存前に必ず入力してください。
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-2">金額 (JPY)</label>
