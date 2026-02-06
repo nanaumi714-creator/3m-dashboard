@@ -268,7 +268,7 @@ export async function extractReceiptFields(
       body: JSON.stringify({
         model,
         messages,
-        temperature: 0,
+        temperature: 1,
         response_format: { type: "json_object" },
       }),
     });
