@@ -23,7 +23,6 @@ type Transaction = {
   transaction_business_info: {
     is_business: boolean;
     business_ratio: number;
-    category_id: string | null;
   } | null;
 };
 
@@ -34,7 +33,7 @@ function getExpenseTypeBadge(tbi: Transaction["transaction_business_info"]): {
   if (!tbi) return { label: "未判定", className: "bg-gray-100 text-gray-800" };
   if (!tbi.is_business) return { label: "プライベート", className: "bg-purple-100 text-purple-800" };
   if ((tbi.business_ratio ?? 100) < 100) return { label: `按分 ${tbi.business_ratio ?? 0}%`, className: "bg-blue-100 text-blue-800" };
-  return { label: "事業", className: "bg-blue-600 text-white" };
+  return { label: "事業用", className: "bg-blue-600 text-white" };
 }
 
 export default function DashboardPage() {
@@ -58,7 +57,7 @@ export default function DashboardPage() {
         const [monthlyRes, lifetimeRes, recentRes] = await Promise.all([
           supabase.from("transactions").select("amount_yen, transaction_business_info(is_business, business_ratio)").gte("occurred_on", firstDay).lte("occurred_on", lastDay),
           supabase.from("transactions").select("amount_yen"),
-          supabase.from("transactions").select("id, occurred_on, amount_yen, description, vendor_raw, payment_methods(name), transaction_business_info(is_business, business_ratio, category_id)").order("occurred_on", { ascending: false }).limit(5)
+          supabase.from("transactions").select("id, occurred_on, amount_yen, description, vendor_raw, payment_methods(name), transaction_business_info(is_business, business_ratio)").order("occurred_on", { ascending: false }).limit(5)
         ]);
 
         // Monthly Calculation

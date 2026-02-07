@@ -80,7 +80,7 @@ export async function POST(request: Request) {
     const resolvedIsBusiness =
       body.isBusiness ??
       vendorSuggestion.isBusiness ??
-      Boolean(vendorSuggestion.categoryId);
+      false;
 
     const resolvedRatioRaw =
       body.businessRatio ??
@@ -92,9 +92,7 @@ export async function POST(request: Request) {
       Math.max(0, Math.round(resolvedRatioRaw))
     );
 
-    const resolvedCategoryId = resolvedIsBusiness
-      ? body.categoryId ?? vendorSuggestion.categoryId
-      : null;
+    const resolvedCategoryId = body.categoryId ?? vendorSuggestion.categoryId ?? null;
 
     const normalizedAmount = body.amountYen < 0
       ? Math.round(body.amountYen)
@@ -139,6 +137,7 @@ export async function POST(request: Request) {
         vendor_raw: vendorRaw,
         vendor_norm: vendorNorm,
         vendor_id: vendorSuggestion.vendorId,
+        category_id: resolvedCategoryId,
         fingerprint,
       })
       .select("id")
@@ -154,7 +153,6 @@ export async function POST(request: Request) {
         transaction_id: transaction.id,
         is_business: resolvedIsBusiness,
         business_ratio: resolvedIsBusiness ? resolvedRatio : 0,
-        category_id: resolvedIsBusiness ? resolvedCategoryId : null,
         judged_by: "receipt_upload",
         judged_at: new Date().toISOString(),
         audit_note: "Receipt review confirmation.",

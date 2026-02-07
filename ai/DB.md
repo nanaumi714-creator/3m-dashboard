@@ -16,6 +16,7 @@ See `supabase/init.sql` for the actual DDL.
 | description| TEXT | Raw description from CSV. |
 | vendor_norm| TEXT | Normalized vendor name (e.g. "amazon web services" -> "amazon") |
 | vendor_id| UUID | **Phase 2**: FK to vendors table |
+| category_id| UUID | Category applied regardless of business judgment |
 | fingerprint| TEXT | Derived hash for duplicate detection. |
 | duplicate_group_id| UUID | Nullable. If set, this transaction is part of a duplicate group. |
 | user_id| UUID | Owner user id for row-level security (auth.uid). |
@@ -29,9 +30,11 @@ See `supabase/init.sql` for the actual DDL.
 | transaction_id | UUID | FK to transactions. |
 | is_business | BOOLEAN | True if this is a business expense. |
 | business_ratio | INTEGER | 0-100. Percentage deductible. |
-| category_id | UUID | **Phase 2**: FK to expense_categories |
 | judged_at | TIMESTAMP | Audit trail. |
 | note | TEXT | Audit note / context. |
+
+Notes:
+- `transaction_business_info.category_id` is deprecated. Categories now live on `transactions.category_id`.
 
 ### 3. `receipts`
 **Role**: Attachments and OCR text linked to transactions.
@@ -195,7 +198,7 @@ Vendor Matching → vendor_aliases lookup → vendors
      ↓
 Rule Application → vendor_rules → suggested judgment
      ↓
-User Confirmation → transaction_business_info (with category_id)
+User Confirmation → transactions.category_id + transaction_business_info (business flags)
 ```
 
 ## Phase 3 Data Flow (OCR + Export + Search)

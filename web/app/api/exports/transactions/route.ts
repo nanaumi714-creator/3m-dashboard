@@ -78,7 +78,7 @@ export async function POST(request: Request) {
     if (filters.minAmount) q = q.gte("amount_yen", Number(filters.minAmount));
     if (filters.maxAmount) q = q.lte("amount_yen", Number(filters.maxAmount));
     if (filters.categoryId) {
-      q = q.eq("transaction_business_info.category_id", filters.categoryId);
+      q = q.eq("category_id", filters.categoryId);
     }
 
     const { data, error } = await q.order("occurred_on", { ascending: false });
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
               ? "true"
               : "false",
         business_ratio: row.transaction_business_info?.business_ratio ?? null,
-        category_id: row.transaction_business_info?.category_id ?? null,
+        category_id: row.category_id ?? null,
         ocr_text: ocrText,
       };
     });

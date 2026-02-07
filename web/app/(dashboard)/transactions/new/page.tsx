@@ -60,13 +60,25 @@ export default function TransactionNewPage() {
 
       const fingerprint = await sha256([occurredOn, normalizedAmount, paymentMethodId, vendorNorm, SOURCE_TYPE, Date.now()].join("|"));
       const { data: transaction, error } = await supabase.from("transactions").insert({
-        occurred_on: occurredOn, amount_yen: normalizedAmount, description: description.trim(), payment_method_id: paymentMethodId, import_source_id: sourceInsert.id, vendor_raw: vendorValue, vendor_norm: vendorNorm, fingerprint,
+        occurred_on: occurredOn,
+        amount_yen: normalizedAmount,
+        description: description.trim(),
+        payment_method_id: paymentMethodId,
+        import_source_id: sourceInsert.id,
+        vendor_raw: vendorValue,
+        vendor_norm: vendorNorm,
+        category_id: categoryId || null,
+        fingerprint,
       }).select("id").single();
       if (error || !transaction) throw error || new Error("TX error");
 
       if (isBusiness !== "pending") {
         await supabase.from("transaction_business_info").insert({
-          transaction_id: transaction.id, is_business: isBusiness === "business", business_ratio: isBusiness === "business" ? Number(businessRatio) : 0, category_id: categoryId || null, judged_by: "manual_entry", judged_at: new Date().toISOString()
+          transaction_id: transaction.id,
+          is_business: isBusiness === "business",
+          business_ratio: isBusiness === "business" ? Number(businessRatio) : 0,
+          judged_by: "manual_entry",
+          judged_at: new Date().toISOString(),
         });
       }
       setStatusMessage("登録が完了しました。");

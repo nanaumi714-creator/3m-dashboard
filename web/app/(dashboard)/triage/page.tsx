@@ -55,11 +55,16 @@ export default function TriagePage() {
   const handleJudge = async (txId: string, isBusiness: boolean, ratio: number, catId: string | null, note: string | null) => {
     setIsSubmitting(true);
     try {
+      const { error: updateCategoryError } = await supabase
+        .from("transactions")
+        .update({ category_id: catId || null })
+        .eq("id", txId);
+      if (updateCategoryError) throw updateCategoryError;
+
       const { error } = await supabase.from("transaction_business_info").insert({
         transaction_id: txId,
         is_business: isBusiness,
         business_ratio: isBusiness ? ratio : 0,
-        category_id: catId || null,
         audit_note: note || null,
         judged_at: new Date().toISOString(),
         judged_by: "user"

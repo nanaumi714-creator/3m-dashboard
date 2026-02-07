@@ -26,7 +26,7 @@ function getExpenseTypeBadge(tbi: Transaction["transaction_business_info"]): {
   if (!tbi) return { label: "未判定", className: "bg-gray-100 text-gray-800" };
   if (!tbi.is_business) return { label: "プライベート", className: "bg-purple-100 text-purple-800" };
   if ((tbi.business_ratio ?? 100) < 100) return { label: `按分 ${tbi.business_ratio ?? 0}%`, className: "bg-blue-100 text-blue-800" };
-  return { label: "事業", className: "bg-blue-600 text-white" };
+  return { label: "事業用", className: "bg-blue-600 text-white" };
 }
 
 export default function TransactionsPage() {
@@ -88,7 +88,7 @@ export default function TransactionsPage() {
         if (to) q = q.lte("occurred_on", to);
         if (minAmount) q = q.gte("amount_yen", Number(minAmount));
         if (maxAmount) q = q.lte("amount_yen", Number(maxAmount));
-        if (categoryId) q = q.eq("transaction_business_info.category_id", categoryId);
+        if (categoryId) q = q.eq("category_id", categoryId);
 
         const fromIdx = (page - 1) * perPage;
         const toIdx = fromIdx + perPage - 1;
@@ -129,11 +129,18 @@ export default function TransactionsPage() {
     if (!confirm(`${selectedIds.size}件を更新しますか？`)) return;
     setIsUpdatingBatch(true);
     try {
+      if (updates.category_id !== undefined) {
+        const { error: categoryError } = await supabase
+          .from("transactions")
+          .update({ category_id: updates.category_id ?? null })
+          .in("id", Array.from(selectedIds));
+        if (categoryError) throw categoryError;
+      }
+
       const records = Array.from(selectedIds).map(id => ({
         transaction_id: id,
         is_business: updates.is_business ?? true,
         business_ratio: updates.business_ratio ?? 100,
-        category_id: updates.category_id ?? null,
         judged_by: "batch_action",
         judged_at: new Date().toISOString()
       }));

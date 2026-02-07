@@ -60,6 +60,7 @@ export default function CashEntryPage() {
                     payment_method_id: cashPaymentId,
                     vendor_raw: formData.description,
                     vendor_norm: formData.description.toLowerCase().replace(/\s+/g, ""),
+                    category_id: formData.category_id || null,
                     fingerprint: "manual-" + Date.now(), // Simple fingerprint for manual entry
                 })
                 .select()
@@ -75,7 +76,6 @@ export default function CashEntryPage() {
                         transaction_id: transaction.id,
                         is_business: true,
                         business_ratio: formData.business_ratio,
-                        category_id: formData.category_id || null,
                         judged_by: "manual_entry",
                         judged_at: new Date().toISOString(),
                         audit_note: null,
@@ -84,11 +84,11 @@ export default function CashEntryPage() {
                 if (biError) throw biError;
             }
 
-            alert("現金取引を登録しました");
+            alert("迴ｾ驥大叙蠑輔ｒ逋ｻ骭ｲ縺励∪縺励◆");
             router.push("/transactions");
         } catch (error) {
             console.error(error);
-            alert("登録に失敗しました: " + (error instanceof Error ? error.message : ""));
+            alert("逋ｻ骭ｲ縺ｫ螟ｱ謨励＠縺ｾ縺励◆: " + (error instanceof Error ? error.message : ""));
         } finally {
             setLoading(false);
         }
@@ -97,12 +97,12 @@ export default function CashEntryPage() {
     return (
         <div className="min-h-screen bg-gray-50">
             <div className="max-w-2xl mx-auto px-4 py-8">
-                <h1 className="text-3xl font-bold text-gray-900 mb-8">現金取引入力</h1>
+                <h1 className="text-3xl font-bold text-gray-900 mb-8">迴ｾ驥大叙蠑募・蜉・/h1>
 
                 <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
                     {/* Date */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">取引日 *</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">蜿門ｼ墓律 *</label>
                         <input
                             type="date"
                             required
@@ -114,29 +114,46 @@ export default function CashEntryPage() {
 
                     {/* Amount */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">金額（円） *</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">驥鷹｡搾ｼ亥・・・*</label>
                         <input
                             type="number"
                             required
                             value={formData.amount_yen}
                             onChange={(e) => setFormData({ ...formData, amount_yen: e.target.value })}
-                            placeholder="例: 1500"
+                            placeholder="萓・ 1500"
                             className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                        <p className="text-sm text-gray-500 mt-1">支出として記録されます</p>
+                        <p className="text-sm text-gray-500 mt-1">謾ｯ蜃ｺ縺ｨ縺励※險倬鹸縺輔ｌ縺ｾ縺・/p>
                     </div>
 
                     {/* Description */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">内容 *</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">蜀・ｮｹ *</label>
                         <input
                             type="text"
                             required
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            placeholder="例: コンビニ購入"
+                            placeholder="萓・ 繧ｳ繝ｳ繝薙ル雉ｼ蜈･"
                             className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
+                    </div>
+
+                    {/* Category */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">繧ｫ繝・ざ繝ｪ繝ｼ</label>
+                        <select
+                            value={formData.category_id}
+                            onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                            className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="">譛ｪ險ｭ螳・/option>
+                            {categories.map((cat) => (
+                                <option key={cat.id} value={cat.id}>
+                                    {cat.name}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     {/* Business Flag */}
@@ -148,7 +165,7 @@ export default function CashEntryPage() {
                                 onChange={(e) => setFormData({ ...formData, is_business: e.target.checked })}
                                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                             />
-                            <span className="ml-2 text-sm font-medium text-gray-700">事業経費として記録</span>
+                            <span className="ml-2 text-sm font-medium text-gray-700">莠区･ｭ邨瑚ｲｻ縺ｨ縺励※險倬鹸</span>
                         </label>
                     </div>
 
@@ -156,7 +173,7 @@ export default function CashEntryPage() {
                     {formData.is_business && (
                         <>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">按分率 (%)</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">謖牙・邇・(%)</label>
                                 <input
                                     type="number"
                                     min="0"
@@ -167,21 +184,7 @@ export default function CashEntryPage() {
                                 />
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">カテゴリ</label>
-                                <select
-                                    value={formData.category_id}
-                                    onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                    <option value="">（未分類）</option>
-                                    {categories.map((cat) => (
-                                        <option key={cat.id} value={cat.id}>
-                                            {cat.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                            
                         </>
                     )}
 
@@ -192,14 +195,14 @@ export default function CashEntryPage() {
                             onClick={() => router.back()}
                             className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                         >
-                            キャンセル
+                            繧ｭ繝｣繝ｳ繧ｻ繝ｫ
                         </button>
                         <button
                             type="submit"
                             disabled={loading}
                             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
                         >
-                            {loading ? "登録中..." : "登録"}
+                            {loading ? "逋ｻ骭ｲ荳ｭ..." : "逋ｻ骭ｲ"}
                         </button>
                     </div>
                 </form>
