@@ -2,14 +2,29 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { Database } from "@/lib/database.types";
 
-type Account = Database["public"]["Tables"]["accounts"]["Row"];
-type Transfer = Database["public"]["Tables"]["transfers"]["Row"];
+// Local types to avoid using outdated Database types
+type Account = {
+  id: string;
+  name: string;
+  is_active: boolean;
+  account_type?: string;
+  asset_type?: string;
+};
+
+type Transfer = {
+  id: string;
+  from_account_id: string;
+  to_account_id: string;
+  amount_yen: number;
+  occurred_on: string;
+  note: string | null;
+  created_at: string;
+};
 
 type TransferWithAccount = Transfer & {
-  from_account: Pick<Account, "name"> | null;
-  to_account: Pick<Account, "name"> | null;
+  from_account: { name: string } | null;
+  to_account: { name: string } | null;
 };
 
 export default function TransfersPage() {
@@ -22,12 +37,18 @@ export default function TransfersPage() {
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<string | null>(null);
 
-  const activeAccounts = useMemo(() => accounts.filter((account) => account.is_active), [accounts]);
+  // Filter for asset accounts only (exclude liabilities like credit cards)
+  const activeAccounts = useMemo(() => {
+    return accounts.filter((account) =>
+      account.is_active && (!account.account_type || account.account_type === "asset")
+    );
+  }, [accounts]);
 
   const loadData = async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [{ data: accountData, error: accountError }, { data: transferData, error: transferError }] = await Promise.all([
-      supabase.from("accounts").select("*").order("name"),
-      supabase.from("transfers").select("*, from_account:from_account_id(name), to_account:to_account_id(name)").order("occurred_on", { ascending: false }).limit(100),
+      (supabase as any).from("accounts").select("*").order("name"),
+      (supabase as any).from("transfers").select("*, from_account:from_account_id(name), to_account:to_account_id(name)").order("occurred_on", { ascending: false }).limit(100),
     ]);
 
     if (accountError) {
@@ -42,7 +63,7 @@ export default function TransfersPage() {
       return;
     }
 
-    setAccounts(accountData || []);
+    setAccounts((accountData || []).map((a: any) => ({ ...a })) as Account[]);
     setTransfers((transferData || []) as TransferWithAccount[]);
   };
 
@@ -64,7 +85,8 @@ export default function TransfersPage() {
       return;
     }
 
-    const { error } = await supabase.from("transfers").insert({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any).from("transfers").insert({
       from_account_id: fromAccountId,
       to_account_id: toAccountId,
       amount_yen: Math.trunc(value),
@@ -90,7 +112,7 @@ export default function TransfersPage() {
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
       <div>
         <h1 className="text-3xl font-black text-gray-900 tracking-tight">資金移動（振替）</h1>
-        <p className="text-gray-600 font-medium mt-2">管理場所間の資金移動を記録します。</p>
+        <p className="text-gray-600 font-medium mt-2">資産口座間の資金移動を記録します（例：銀行Aから銀行Bへ）。</p>
       </div>
 
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">

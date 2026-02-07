@@ -5,7 +5,9 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const mainNavItems = [
-    { href: "/transactions", label: "支出一覧" },
+    { href: "/balance", label: "残高" },
+    { href: "/expenses", label: "経費" },
+    { href: "/transactions", label: "取引一覧" },
     { href: "/triage", label: "判定待ち" },
 ];
 
