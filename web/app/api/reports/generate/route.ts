@@ -79,14 +79,14 @@ export async function POST(request: NextRequest) {
 }
 
 function generateCSV(transactions: any[]): string {
-    const headers = ["蜿門ｼ墓律", "蜀・ｮｹ", "蜿門ｼ募・", "驥鷹｡・, "繧ｫ繝・ざ繝ｪ", "莠区･ｭ", "謖牙・邇・];
+    const headers = ["日付", "内容", "支払先", "金額", "カテゴリ", "事業", "按分率"];
     const rows = transactions.map((t) => [
         t.occurred_on,
         t.description,
         t.vendors?.name || "",
         t.amount_yen,
         t.expense_categories?.name || "",
-        t.transaction_business_info?.is_business ? "笳・ : "",
+        t.transaction_business_info?.is_business ? "〇" : "",
         t.transaction_business_info?.business_ratio || ""
     ]);
 
