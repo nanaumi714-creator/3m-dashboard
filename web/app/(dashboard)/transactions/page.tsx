@@ -282,9 +282,6 @@ export default function TransactionsPage() {
                     {selectedIds.has(tx.id) && <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="p-0.5"><polyline points="20 6 9 17 4 12" /></svg>}
                   </button>
                   <Link href={`/transactions/${tx.id}`} className="flex-1 min-w-0 flex items-center gap-3">
-                    <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm", !tbi ? "bg-orange-50 text-orange-400" : tbi.is_business ? "bg-blue-50 text-blue-500" : "bg-gray-50 text-gray-400")}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /></svg>
-                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-0.5">
                         <h4 className="text-[12px] font-black text-gray-900 truncate tracking-tight">{tx.description}</h4>
