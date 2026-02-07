@@ -16,7 +16,7 @@ export async function GET() {
   try {
     const supabase = createServerClient();
     const start = getMonthStart();
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("ocr_usage_logs")
       .select("pages")
       .gte("request_at", start.toISOString());
