@@ -25,6 +25,36 @@ type Summary = {
     netWorth: number;
 };
 
+const assetTypeLabel = (value: string) => {
+    switch (value) {
+        case "cash":
+            return "現金";
+        case "bank":
+            return "銀行口座";
+        case "qr":
+            return "QR決済";
+        case "emoney":
+            return "電子マネー";
+        case "prepaid_card":
+            return "プリペイドカード";
+        default:
+            return value;
+    }
+};
+
+const assetTypeIcon = (value: string) => {
+    switch (value) {
+        case "bank":
+            return "🏦";
+        case "cash":
+            return "👛";
+        case "prepaid_card":
+            return "💳";
+        default:
+            return "📱";
+    }
+};
+
 export default function BalancePage() {
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [summary, setSummary] = useState<Summary>({ totalAssets: 0, totalLiabilities: 0, netWorth: 0 });
@@ -167,11 +197,11 @@ export default function BalancePage() {
                         <div key={account.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors group">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center text-lg group-hover:bg-white group-hover:text-slate-600 transition-colors shadow-sm">
-                                    {account.asset_type === 'bank' ? '🏦' : account.asset_type === 'cash' ? '👛' : '📱'}
+                                    {assetTypeIcon(account.asset_type)}
                                 </div>
                                 <div>
                                     <p className="font-bold text-slate-700">{account.name}</p>
-                                    <p className="text-xs text-slate-400 font-bold uppercase">{account.asset_type}</p>
+                                    <p className="text-xs text-slate-400 font-bold">{assetTypeLabel(account.asset_type)}</p>
                                 </div>
                             </div>
                             <p className="font-bold text-slate-800">¥{account.current_balance_yen.toLocaleString()}</p>

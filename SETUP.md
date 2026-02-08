@@ -65,6 +65,32 @@ The following `NEXT_PUBLIC_` variables are referenced by the web client:
 - `NEXT_PUBLIC_DEV_LOGIN_PASSWORD` (dev only)
 - `NEXT_PUBLIC_DEV_AUTO_SIGNUP` (dev only)
 
+### Local Dev Auth + RLS (Categories / Payment Methods)
+
+Local development uses RLS on master tables, so you must be authenticated to see data.
+Use DevAutoLogin (local only) and ensure the seeded rows are owned by your dev user.
+
+1. Enable dev auto-login in `web/.env.local`:
+   ```env
+   NEXT_PUBLIC_DISABLE_AUTH=true
+   NEXT_PUBLIC_DEV_LOGIN_EMAIL=dev+local@example.com
+   NEXT_PUBLIC_DEV_LOGIN_PASSWORD=DevPassw0rd!2345
+   NEXT_PUBLIC_DEV_AUTO_SIGNUP=true
+   ```
+2. Open `http://localhost:3000` and confirm `DevAutoLogin` logs in.
+3. Backfill owner ids in **local** Supabase Studio (`http://127.0.0.1:54323`):
+   ```sql
+   update expense_categories
+   set user_id = (select id from auth.users order by created_at desc limit 1);
+
+   update payment_methods
+   set user_id = (select id from auth.users order by created_at desc limit 1);
+   ```
+
+Notes:
+- Run the SQL **only in local**. Do not run these updates in production.
+- If categories still do not show, clear LocalStorage and reload so a fresh session is used.
+
 ## Troubleshooting
 
 **Frontend can't connect to database:**

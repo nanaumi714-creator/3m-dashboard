@@ -15,6 +15,33 @@ type Account = {
   created_at: string;
 };
 
+const assetTypeOptions = [
+  { value: "cash", label: "現金" },
+  { value: "bank", label: "銀行口座" },
+  { value: "qr", label: "QR決済" },
+  { value: "emoney", label: "電子マネー" },
+  { value: "prepaid_card", label: "プリペイドカード" },
+];
+
+const assetTypeLabel = (value: string) => {
+  switch (value) {
+    case "cash":
+      return "現金";
+    case "bank":
+      return "銀行口座";
+    case "qr":
+      return "QR決済";
+    case "emoney":
+      return "電子マネー";
+    case "prepaid_card":
+      return "プリペイドカード";
+    case "credit_payable":
+      return "クレジットカード未払";
+    default:
+      return value;
+  }
+};
+
 export default function AccountsPage() {
   const router = useRouter();
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -188,10 +215,9 @@ export default function AccountsPage() {
                   <option value="credit_payable">クレジットカード等</option>
                 ) : (
                   <>
-                    <option value="cash">現金</option>
-                    <option value="bank">銀行</option>
-                    <option value="qr">QR決済</option>
-                    <option value="emoney">電子マネー</option>
+                    {assetTypeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
                   </>
                 )}
               </select>
@@ -229,7 +255,7 @@ export default function AccountsPage() {
                     {account.account_type === "liability" ? "負債" : "資産"}
                   </span>
                 </td>
-                <td className="py-3 text-gray-600">{account.asset_type}</td>
+                <td className="py-3 text-gray-600">{assetTypeLabel(account.asset_type)}</td>
                 <td className="py-3 text-gray-600">{account.opened_on || "未設定"}</td>
                 <td className="py-3 text-gray-600">¥{account.opening_balance_yen.toLocaleString()}</td>
                 <td className="py-3">
