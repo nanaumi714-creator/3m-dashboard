@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase-server";
+import { createClient } from "@supabase/supabase-js";
+import { Database } from "@/lib/database.types";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,19 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const supabase = createServerClient();
+        const supabaseUrl = process.env.SUPABASE_URL;
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+        if (!supabaseUrl || !serviceRoleKey) {
+            return NextResponse.json(
+                { error: "Missing Supabase service role configuration." },
+                { status: 500 }
+            );
+        }
+
+        const supabase = createClient<Database>(supabaseUrl, serviceRoleKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+        });
 
         // Log sync start
         const { data: syncLog, error: logError } = await supabase
