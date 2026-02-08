@@ -8,6 +8,9 @@ import { cn } from "@/lib/utils";
 const masterNavItems = [
     { href: "/vendors", label: "取引先管理" },
     { href: "/categories", label: "カテゴリ管理" },
+    { href: "/payment-methods", label: "支払方法管理" },
+    { href: "/accounts", label: "管理場所（口座）" },
+    { href: "/transfers", label: "資金移動（振替）" },
     { href: "/exports", label: "CSV出力・レポート" }
 ];
 

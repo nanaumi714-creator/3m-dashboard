@@ -130,7 +130,8 @@ export default function TransactionsPage() {
     setIsUpdatingBatch(true);
     try {
       if (updates.category_id !== undefined) {
-        const { error: categoryError } = await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: categoryError } = await (supabase as any)
           .from("transactions")
           .update({ category_id: updates.category_id ?? null })
           .in("id", Array.from(selectedIds));

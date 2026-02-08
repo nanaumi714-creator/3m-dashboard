@@ -67,7 +67,14 @@ export async function POST(request: Request) {
     let userId: string | null = null;
     let uploadClient = supabase;
 
-    if (accessToken) {
+    const { data: cookieAuthData, error: cookieAuthError } =
+      await supabase.auth.getUser();
+    if (cookieAuthError) {
+      console.warn("cookie auth failed:", cookieAuthError.message);
+    }
+    if (cookieAuthData.user) {
+      userId = cookieAuthData.user.id;
+    } else if (accessToken) {
       if (!supabaseAnonKey) {
         return NextResponse.json(
           { error: "Supabase anon key is missing." },
@@ -98,6 +105,10 @@ export async function POST(request: Request) {
 
       userId = user.id;
       uploadClient = supabaseUser;
+    }
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());

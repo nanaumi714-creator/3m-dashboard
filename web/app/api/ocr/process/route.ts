@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
         // Count OCR requests this month
         const currentMonth = new Date().toISOString().substring(0, 7);
-        const { count } = await supabase
+        const { count } = await (supabase as any)
             .from("ocr_requests")
             .select("*", { count: "exact", head: true })
             .eq("user_id", user.user.id)
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Create OCR request record
-        const { data: ocrRequest, error: insertError } = await supabase
+        const { data: ocrRequest, error: insertError } = await (supabase as any)
             .from("ocr_requests")
             .insert({
                 receipt_id: receiptId,
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
             .from("ocr_requests")
             .select("*")
             .eq("receipt_id", receiptId)

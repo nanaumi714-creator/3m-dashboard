@@ -102,7 +102,7 @@ export async function POST(request: Request) {
     const safeName = sanitizeFilename(file.name || "receipt");
     const filename = `${crypto.randomUUID()}-${safeName}`;
     const fullPath = path.join(uploadDir, filename);
-    await fs.writeFile(fullPath, buffer);
+    await fs.writeFile(fullPath, (buffer as any));
 
     const storageUrl = `/uploads/${filename}`;
 
@@ -151,7 +151,7 @@ export async function POST(request: Request) {
           throw updateError;
         }
 
-        const { error: logError } = await supabase
+        const { error: logError } = await (supabase as any)
           .from("ocr_usage_logs")
           .insert({
             receipt_id: receipt.id,
@@ -165,7 +165,7 @@ export async function POST(request: Request) {
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : "OCR failed.";
-        await supabase.from("ocr_usage_logs").insert({
+        await (supabase as any).from("ocr_usage_logs").insert({
           receipt_id: receipt.id,
           status: "failed",
           pages: 1,

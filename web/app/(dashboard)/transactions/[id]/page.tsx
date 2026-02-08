@@ -12,10 +12,11 @@ type ExpenseCategory = Database["public"]["Tables"]["expense_categories"]["Row"]
 type PaymentMethod = Database["public"]["Tables"]["payment_methods"]["Row"];
 type BusinessInfo = Database["public"]["Tables"]["transaction_business_info"]["Row"];
 type Transaction = Database["public"]["Tables"]["transactions"]["Row"] & {
+  category_id?: string | null;
   payment_methods?: PaymentMethod | null;
   transaction_business_info:
-    | Database["public"]["Tables"]["transaction_business_info"]["Row"]
-    | null;
+  | Database["public"]["Tables"]["transaction_business_info"]["Row"]
+  | null;
 };
 type OcrUsageSummary = {
   used: number;
@@ -341,8 +342,8 @@ export default function TransactionDetailPage({
         [editOccurredOn, normalizedAmount, editPaymentMethodId, vendorNorm, sourceType].join("|")
       );
 
-      const { error: updateError } = await supabase
-        .from("transactions")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: updateError } = await (supabase as any).from("transactions")
         .update({
           occurred_on: editOccurredOn,
           amount_yen: normalizedAmount,
@@ -547,11 +548,10 @@ export default function TransactionDetailPage({
                 <button
                   type="button"
                   onClick={() => setEditIsBusiness((prev) => !prev)}
-                  className={`w-full px-4 py-3 rounded-lg border text-sm font-medium transition-colors ${
-                    editIsBusiness
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-purple-100 text-purple-800 border-purple-200"
-                  }`}
+                  className={`w-full px-4 py-3 rounded-lg border text-sm font-medium transition-colors ${editIsBusiness
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-purple-100 text-purple-800 border-purple-200"
+                    }`}
                 >
                   {editIsBusiness ? "事業用" : "プライベート"}
                 </button>
