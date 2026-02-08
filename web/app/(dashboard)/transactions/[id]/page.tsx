@@ -12,10 +12,11 @@ type ExpenseCategory = Database["public"]["Tables"]["expense_categories"]["Row"]
 type PaymentMethod = Database["public"]["Tables"]["payment_methods"]["Row"];
 type BusinessInfo = Database["public"]["Tables"]["transaction_business_info"]["Row"];
 type Transaction = Database["public"]["Tables"]["transactions"]["Row"] & {
+  category_id?: string | null;
   payment_methods?: PaymentMethod | null;
   transaction_business_info:
-    | Database["public"]["Tables"]["transaction_business_info"]["Row"]
-    | null;
+  | Database["public"]["Tables"]["transaction_business_info"]["Row"]
+  | null;
 };
 type OcrUsageSummary = {
   used: number;
@@ -93,17 +94,6 @@ export default function TransactionDetailPage({
           payment_methods: paymentMethod,
           transaction_business_info: businessInfoData ?? null,
         });
-        setEditOccurredOn(transactionRow.occurred_on);
-        setEditAmountYen(transactionRow.amount_yen.toString());
-        setEditDescription(transactionRow.description);
-        setEditVendorRaw(transactionRow.vendor_raw || "");
-        setEditPaymentMethodId(transactionRow.payment_method_id ?? "");
-
-        const businessInfo = businessInfoData;
-        setEditIsBusiness(businessInfo?.is_business ?? true);
-        setEditBusinessRatio((businessInfo?.business_ratio ?? 100).toString());
-        setEditCategoryId(businessInfo?.category_id ?? "");
-        setEditAuditNote(businessInfo?.audit_note ?? "");
 
         const { data: receiptData, error: receiptError } = await supabase
           .from("receipts")
@@ -125,7 +115,28 @@ export default function TransactionDetailPage({
           ]);
 
         if (paymentError) throw paymentError;
-        setCategories((categoryData || []) as ExpenseCategory[]);
+        const visibleCategories = (categoryData || []) as ExpenseCategory[];
+        let mergedCategories = visibleCategories;
+
+        if (transactionRow.category_id) {
+          const isMissing = !visibleCategories.some(
+            (category) => category.id === transactionRow.category_id
+          );
+          if (isMissing) {
+            const { data: currentCategory, error: currentCategoryError } =
+              await supabase
+                .from("expense_categories")
+                .select("*")
+                .eq("id", transactionRow.category_id)
+                .maybeSingle();
+            if (currentCategoryError) throw currentCategoryError;
+            if (currentCategory) {
+              mergedCategories = [currentCategory, ...visibleCategories];
+            }
+          }
+        }
+
+        setCategories(mergedCategories);
         setPaymentMethods((paymentData || []) as PaymentMethod[]);
       } catch (err) {
         console.error("Failed to load transaction:", err);
@@ -137,6 +148,21 @@ export default function TransactionDetailPage({
 
     loadData();
   }, [params.id]);
+
+  useEffect(() => {
+    if (!transaction) return;
+    setEditOccurredOn(transaction.occurred_on);
+    setEditAmountYen(transaction.amount_yen.toString());
+    setEditDescription(transaction.description);
+    setEditVendorRaw(transaction.vendor_raw || "");
+    setEditPaymentMethodId(transaction.payment_method_id ?? "");
+
+    const businessInfo = transaction.transaction_business_info;
+    setEditIsBusiness(businessInfo?.is_business ?? true);
+    setEditBusinessRatio((businessInfo?.business_ratio ?? 100).toString());
+    setEditCategoryId(transaction.category_id ?? "");
+    setEditAuditNote(businessInfo?.audit_note ?? "");
+  }, [transaction]);
 
   async function refreshOcrUsage() {
     try {
@@ -316,8 +342,8 @@ export default function TransactionDetailPage({
         [editOccurredOn, normalizedAmount, editPaymentMethodId, vendorNorm, sourceType].join("|")
       );
 
-      const { error: updateError } = await supabase
-        .from("transactions")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: updateError } = await (supabase as any).from("transactions")
         .update({
           occurred_on: editOccurredOn,
           amount_yen: normalizedAmount,
@@ -325,6 +351,7 @@ export default function TransactionDetailPage({
           payment_method_id: editPaymentMethodId,
           vendor_raw: vendorValue,
           vendor_norm: vendorNorm,
+          category_id: editCategoryId || null,
           fingerprint,
         })
         .eq("id", params.id);
@@ -338,7 +365,6 @@ export default function TransactionDetailPage({
           transaction_id: params.id,
           is_business: editIsBusiness,
           business_ratio: ratio,
-          category_id: editCategoryId || null,
           audit_note: editAuditNote.trim() || null,
           judged_by: "gui",
           judged_at: judgedAt,
@@ -369,6 +395,7 @@ export default function TransactionDetailPage({
           payment_method_id: editPaymentMethodId,
           vendor_raw: vendorValue,
           vendor_norm: vendorNorm,
+          category_id: editCategoryId || null,
           fingerprint,
           transaction_business_info: nextBusinessInfo,
         };
@@ -522,8 +549,8 @@ export default function TransactionDetailPage({
                   type="button"
                   onClick={() => setEditIsBusiness((prev) => !prev)}
                   className={`w-full px-4 py-3 rounded-lg border text-sm font-medium transition-colors ${editIsBusiness
-                    ? "bg-green-100 text-green-800 border-green-200"
-                    : "bg-red-100 text-red-800 border-red-200"
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-purple-100 text-purple-800 border-purple-200"
                     }`}
                 >
                   {editIsBusiness ? "事業用" : "プライベート"}

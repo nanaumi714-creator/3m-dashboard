@@ -23,7 +23,8 @@ export default function GmailLogsPage() {
 
     async function loadLogs() {
         try {
-            const { data, error } = await supabase
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data, error } = await (supabase as any)
                 .from("gmail_sync_logs")
                 .select("*")
                 .order("started_at", { ascending: false })
@@ -70,8 +71,8 @@ export default function GmailLogsPage() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${log.status === "completed" ? "bg-green-100 text-green-800" :
-                                                log.status === "running" ? "bg-blue-100 text-blue-800" :
-                                                    "bg-red-100 text-red-800"
+                                            log.status === "running" ? "bg-blue-100 text-blue-800" :
+                                                "bg-red-100 text-red-800"
                                             }`}>
                                             {log.status}
                                         </span>

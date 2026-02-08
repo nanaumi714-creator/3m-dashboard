@@ -22,7 +22,8 @@ export default function OCRFeedbackForm({ receiptId, ocrRequestId }: { receiptId
         try {
             setSubmitting(true);
 
-            const { error } = await supabase
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { error } = await (supabase as any)
                 .from("ocr_feedback")
                 .insert({
                     receipt_id: receiptId,

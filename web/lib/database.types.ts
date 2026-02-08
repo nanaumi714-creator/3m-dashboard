@@ -4,518 +4,1086 @@ export type Json =
   | boolean
   | null
   | { [key: string]: Json | undefined }
-  | Json[];
+  | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
-      expense_categories: {
+      accounts: {
         Row: {
-          id: string;
-          name: string;
-          description: string | null;
-          is_active: boolean;
-          created_at: string;
-        };
+          account_type: string
+          asset_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          opened_on: string | null
+          opening_balance_yen: number
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          id?: string;
-          name: string;
-          description?: string | null;
-          is_active?: boolean;
-          created_at?: string;
-        };
+          account_type?: string
+          asset_type: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          opened_on?: string | null
+          opening_balance_yen?: number
+          updated_at?: string
+          user_id?: string
+        }
         Update: {
-          id?: string;
-          name?: string;
-          description?: string | null;
-          is_active?: boolean;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      vendors: {
+          account_type?: string
+          asset_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          opened_on?: string | null
+          opening_balance_yen?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      balance_adjustments: {
         Row: {
-          id: string;
-          name: string;
-          description: string | null;
-          default_category_id: string | null;
-          is_active: boolean;
-          created_at: string;
-        };
+          account_id: string
+          adjusted_on: string
+          amount_yen: number
+          created_at: string
+          id: string
+          reason: string
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          id?: string;
-          name: string;
-          description?: string | null;
-          default_category_id?: string | null;
-          is_active?: boolean;
-          created_at?: string;
-        };
+          account_id: string
+          adjusted_on: string
+          amount_yen: number
+          created_at?: string
+          id?: string
+          reason: string
+          updated_at?: string
+          user_id?: string
+        }
         Update: {
-          id?: string;
-          name?: string;
-          description?: string | null;
-          default_category_id?: string | null;
-          is_active?: boolean;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      payment_methods: {
-        Row: {
-          id: string;
-          name: string;
-          is_active: boolean;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          name: string;
-          is_active?: boolean;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          name?: string;
-          is_active?: boolean;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      transactions: {
-        Row: {
-          id: string;
-          occurred_on: string;
-          description: string;
-          amount_yen: number;
-          vendor_raw: string | null;
-          vendor_norm: string | null;
-          vendor_id: string | null;
-          payment_method_id: string;
-          import_source_id: string | null;
-          source_row_number: number | null;
-          fingerprint: string | null;
-          created_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          id?: string;
-          occurred_on: string;
-          description: string;
-          amount_yen: number;
-          vendor_raw?: string | null;
-          vendor_norm?: string | null;
-          vendor_id?: string | null;
-          payment_method_id: string;
-          import_source_id?: string | null;
-          source_row_number?: number | null;
-          fingerprint?: string | null;
-          created_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          id?: string;
-          occurred_on?: string;
-          description?: string;
-          amount_yen?: number;
-          vendor_raw?: string | null;
-          vendor_norm?: string | null;
-          vendor_id?: string | null;
-          payment_method_id?: string;
-          import_source_id?: string | null;
-          source_row_number?: number | null;
-          fingerprint?: string | null;
-          created_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      transaction_business_info: {
-        Row: {
-          transaction_id: string;
-          is_business: boolean;
-          business_ratio: number;
-          category_id: string | null;
-          audit_note: string | null;
-          judged_at: string;
-          judged_by: string;
-          created_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          transaction_id: string;
-          is_business: boolean;
-          business_ratio: number;
-          category_id?: string | null;
-          audit_note?: string | null;
-          judged_at: string;
-          judged_by: string;
-          created_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          transaction_id?: string;
-          is_business?: boolean;
-          business_ratio?: number;
-          category_id?: string | null;
-          audit_note?: string | null;
-          judged_at?: string;
-          judged_by?: string;
-          created_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      receipts: {
-        Row: {
-          id: string;
-          transaction_id: string | null;
-          storage_url: string;
-          original_filename: string | null;
-          content_type: string | null;
-          file_size_bytes: number | null;
-          user_id: string | null;
-          ocr_text: string | null;
-          ocr_confidence: number | null;
-          uploaded_at: string;
-        };
-        Insert: {
-          id?: string;
-          transaction_id?: string | null;
-          storage_url: string;
-          original_filename?: string | null;
-          content_type?: string | null;
-          file_size_bytes?: number | null;
-          user_id?: string | null;
-          ocr_text?: string | null;
-          ocr_confidence?: number | null;
-          uploaded_at?: string;
-        };
-        Update: {
-          id?: string;
-          transaction_id?: string | null;
-          storage_url?: string;
-          original_filename?: string | null;
-          content_type?: string | null;
-          file_size_bytes?: number | null;
-          user_id?: string | null;
-          ocr_text?: string | null;
-          ocr_confidence?: number | null;
-          uploaded_at?: string;
-        };
-        Relationships: [];
-      };
-      export_templates: {
-        Row: {
-          id: string;
-          name: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          name: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          name?: string;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      export_history: {
-        Row: {
-          id: string;
-          created_at: string;
-          format: string;
-          filters: Json;
-          row_count: number;
-          export_template_id: string | null;
-          user_id: string | null;
-        };
-        Insert: {
-          id?: string;
-          created_at?: string;
-          format: string;
-          filters: Json;
-          row_count: number;
-          export_template_id?: string | null;
-          user_id?: string | null;
-        };
-        Update: {
-          id?: string;
-          created_at?: string;
-          format?: string;
-          filters?: Json;
-          row_count?: number;
-          export_template_id?: string | null;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      user_category_preferences: {
-        Row: {
-          id: string;
-          user_id: string;
-          category_id: string;
-          is_visible: boolean;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          category_id: string;
-          is_visible?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          category_id?: string;
-          is_visible?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
-      vendor_aliases: {
-        Row: {
-          id: string;
-          vendor_id: string;
-          alias: string;
-          is_active: boolean | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          vendor_id: string;
-          alias: string;
-          is_active?: boolean | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          vendor_id?: string;
-          alias?: string;
-          is_active?: boolean | null;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      vendor_rules: {
-        Row: {
-          id: string;
-          vendor_id: string;
-          is_active: boolean;
-          rule_priority: number;
-          is_business: boolean;
-          business_ratio: number;
-          category_id: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          vendor_id: string;
-          is_active?: boolean;
-          rule_priority?: number;
-          is_business: boolean;
-          business_ratio: number;
-          category_id?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          vendor_id?: string;
-          is_active?: boolean;
-          rule_priority?: number;
-          is_business?: boolean;
-          business_ratio?: number;
-          category_id?: string | null;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      import_sources: {
-        Row: {
-          id: string;
-          source_type: string;
-          file_path: string | null;
-          checksum: string | null;
-          metadata: Json | null;
-          created_at: string;
-          user_id: string | null;
-        };
-        Insert: {
-          id?: string;
-          source_type: string;
-          file_path?: string | null;
-          checksum?: string | null;
-          metadata?: Json | null;
-          created_at?: string;
-          user_id?: string | null;
-        };
-        Update: {
-          id?: string;
-          source_type?: string;
-          file_path?: string | null;
-          checksum?: string | null;
-          metadata?: Json | null;
-          created_at?: string;
-          user_id?: string | null;
-        };
-        Relationships: [];
-      };
-      ocr_usage_logs: {
-        Row: {
-          id: string;
-          receipt_id: string | null;
-          status: string;
-          pages: number | null;
-          provider: string | null;
-          error_message: string | null;
-          request_at: string;
-        };
-        Insert: {
-          id?: string;
-          receipt_id?: string | null;
-          status: string;
-          pages?: number | null;
-          provider?: string | null;
-          error_message?: string | null;
-          request_at?: string;
-        };
-        Update: {
-          id?: string;
-          receipt_id?: string | null;
-          status?: string;
-          pages?: number | null;
-          provider?: string | null;
-          error_message?: string | null;
-          request_at?: string;
-        };
-        Relationships: [];
-      };
-      ocr_requests: {
-        Row: {
-          id: string;
-          receipt_id: string;
-          user_id: string;
-          status: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          receipt_id: string;
-          user_id: string;
-          status: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          receipt_id?: string;
-          user_id?: string;
-          status?: string;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      ocr_feedback: {
-        Row: {
-          id: string;
-          receipt_id: string;
-          ocr_request_id: string;
-          feedback_type: string;
-          details: string | null;
-          corrected_data: Json | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          receipt_id: string;
-          ocr_request_id: string;
-          feedback_type: string;
-          details?: string | null;
-          corrected_data?: Json | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          receipt_id?: string;
-          ocr_request_id?: string;
-          feedback_type?: string;
-          details?: string | null;
-          corrected_data?: Json | null;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
+          account_id?: string
+          adjusted_on?: string
+          amount_yen?: number
+          created_at?: string
+          id?: string
+          reason?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "balance_adjustments_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "account_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "balance_adjustments_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gmail_sync_logs: {
         Row: {
-          id: string;
-          status: string;
-          started_at: string;
-          completed_at: string | null;
-          emails_processed: number | null;
-          receipts_saved: number | null;
-          error_message: string | null;
-        };
+          completed_at: string | null
+          created_at: string
+          emails_processed: number | null
+          error_message: string | null
+          id: string
+          receipts_saved: number | null
+          started_at: string
+          status: string
+          user_id: string | null
+        }
         Insert: {
-          id?: string;
-          status: string;
-          started_at?: string;
-          completed_at?: string | null;
-          emails_processed?: number | null;
-          receipts_saved?: number | null;
-          error_message?: string | null;
-        };
+          completed_at?: string | null
+          created_at?: string
+          emails_processed?: number | null
+          error_message?: string | null
+          id?: string
+          receipts_saved?: number | null
+          started_at: string
+          status: string
+          user_id?: string | null
+        }
         Update: {
-          id?: string;
-          status?: string;
-          started_at?: string;
-          completed_at?: string | null;
-          emails_processed?: number | null;
-          receipts_saved?: number | null;
-          error_message?: string | null;
-        };
-        Relationships: [];
-      };
+          completed_at?: string | null
+          created_at?: string
+          emails_processed?: number | null
+          error_message?: string | null
+          id?: string
+          receipts_saved?: number | null
+          started_at?: string
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       backups: {
         Row: {
-          id: string;
-          backup_type: string;
-          status: string;
-          backup_timestamp: string;
-          notes: string | null;
-          created_at: string;
-        };
+          backup_timestamp: string
+          backup_type: string
+          created_at: string
+          id: string
+          notes: string | null
+          status: string
+          user_id: string | null
+        }
         Insert: {
-          id?: string;
-          backup_type: string;
-          status: string;
-          backup_timestamp: string;
-          notes?: string | null;
-          created_at?: string;
-        };
+          backup_timestamp: string
+          backup_type: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          status: string
+          user_id?: string | null
+        }
         Update: {
-          id?: string;
-          backup_type?: string;
-          status?: string;
-          backup_timestamp?: string;
-          notes?: string | null;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-    };
-    Views: Record<string, never>;
+          backup_timestamp?: string
+          backup_type?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      card_settlements: {
+        Row: {
+          amount_yen: number
+          billing_period_end: string | null
+          billing_period_start: string | null
+          created_at: string
+          id: string
+          liability_account_id: string
+          note: string | null
+          settled_on: string
+          settlement_account_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_yen: number
+          billing_period_end?: string | null
+          billing_period_start?: string | null
+          created_at?: string
+          id?: string
+          liability_account_id: string
+          note?: string | null
+          settled_on: string
+          settlement_account_id: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          amount_yen?: number
+          billing_period_end?: string | null
+          billing_period_start?: string | null
+          created_at?: string
+          id?: string
+          liability_account_id?: string
+          note?: string | null
+          settled_on?: string
+          settlement_account_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_settlements_liability_account_id_fkey"
+            columns: ["liability_account_id"]
+            isOneToOne: false
+            referencedRelation: "account_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_settlements_liability_account_id_fkey"
+            columns: ["liability_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_settlements_settlement_account_id_fkey"
+            columns: ["settlement_account_id"]
+            isOneToOne: false
+            referencedRelation: "account_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_settlements_settlement_account_id_fkey"
+            columns: ["settlement_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      export_history: {
+        Row: {
+          created_at: string
+          filters: Json | null
+          format: string
+          id: string
+          row_count: number
+          template_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          filters?: Json | null
+          format: string
+          id?: string
+          row_count?: number
+          template_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          filters?: Json | null
+          format?: string
+          id?: string
+          row_count?: number
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "export_history_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "export_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      export_templates: {
+        Row: {
+          columns: Json
+          created_at: string
+          filters: Json | null
+          format: string
+          id: string
+          name: string
+        }
+        Insert: {
+          columns: Json
+          created_at?: string
+          filters?: Json | null
+          format: string
+          id?: string
+          name: string
+        }
+        Update: {
+          columns?: Json
+          created_at?: string
+          filters?: Json | null
+          format?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      import_sources: {
+        Row: {
+          checksum: string | null
+          created_at: string
+          file_path: string | null
+          id: string
+          imported_at: string
+          metadata: Json | null
+          source_type: string
+          user_id: string
+        }
+        Insert: {
+          checksum?: string | null
+          created_at?: string
+          file_path?: string | null
+          id?: string
+          imported_at?: string
+          metadata?: Json | null
+          source_type: string
+          user_id?: string
+        }
+        Update: {
+          checksum?: string | null
+          created_at?: string
+          file_path?: string | null
+          id?: string
+          imported_at?: string
+          metadata?: Json | null
+          source_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ocr_usage_logs: {
+        Row: {
+          error_message: string | null
+          id: string
+          pages: number
+          provider: string
+          receipt_id: string | null
+          request_at: string
+          status: string
+        }
+        Insert: {
+          error_message?: string | null
+          id?: string
+          pages?: number
+          provider?: string
+          receipt_id?: string | null
+          request_at?: string
+          status: string
+        }
+        Update: {
+          error_message?: string | null
+          id?: string
+          pages?: number
+          provider?: string
+          receipt_id?: string | null
+          request_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ocr_usage_logs_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_methods: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          liability_account_id: string | null
+          name: string
+          settlement_account_id: string | null
+          settlement_timing: string
+          source_account_id: string | null
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          liability_account_id?: string | null
+          name: string
+          settlement_account_id?: string | null
+          settlement_timing?: string
+          source_account_id?: string | null
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          liability_account_id?: string | null
+          name?: string
+          settlement_account_id?: string | null
+          settlement_timing?: string
+          source_account_id?: string | null
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_methods_liability_account_id_fkey"
+            columns: ["liability_account_id"]
+            isOneToOne: false
+            referencedRelation: "account_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_methods_liability_account_id_fkey"
+            columns: ["liability_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_methods_settlement_account_id_fkey"
+            columns: ["settlement_account_id"]
+            isOneToOne: false
+            referencedRelation: "account_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_methods_settlement_account_id_fkey"
+            columns: ["settlement_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_methods_source_account_id_fkey"
+            columns: ["source_account_id"]
+            isOneToOne: false
+            referencedRelation: "account_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_methods_source_account_id_fkey"
+            columns: ["source_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      receipts: {
+        Row: {
+          content_type: string | null
+          file_size_bytes: number | null
+          id: string
+          ocr_confidence: number | null
+          ocr_text: string | null
+          original_filename: string | null
+          storage_url: string
+          transaction_id: string | null
+          uploaded_at: string
+          user_id: string
+        }
+        Insert: {
+          content_type?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          ocr_confidence?: number | null
+          ocr_text?: string | null
+          original_filename?: string | null
+          storage_url: string
+          transaction_id?: string | null
+          uploaded_at?: string
+          user_id?: string
+        }
+        Update: {
+          content_type?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          ocr_confidence?: number | null
+          ocr_text?: string | null
+          original_filename?: string | null
+          storage_url?: string
+          transaction_id?: string | null
+          uploaded_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipts_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saved_searches: {
+        Row: {
+          created_at: string
+          filters: Json | null
+          id: string
+          name: string
+          query: string | null
+        }
+        Insert: {
+          created_at?: string
+          filters?: Json | null
+          id?: string
+          name: string
+          query?: string | null
+        }
+        Update: {
+          created_at?: string
+          filters?: Json | null
+          id?: string
+          name?: string
+          query?: string | null
+        }
+        Relationships: []
+      }
+      transaction_business_info: {
+        Row: {
+          audit_note: string | null
+          business_ratio: number
+          category_id: string | null
+          is_business: boolean
+          judged_at: string
+          judged_by: string | null
+          transaction_id: string
+        }
+        Insert: {
+          audit_note?: string | null
+          business_ratio?: number
+          category_id?: string | null
+          is_business: boolean
+          judged_at?: string
+          judged_by?: string | null
+          transaction_id: string
+        }
+        Update: {
+          audit_note?: string | null
+          business_ratio?: number
+          category_id?: string | null
+          is_business?: boolean
+          judged_at?: string
+          judged_by?: string | null
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_transaction_business_info_category"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_business_info_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: true
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          amount_yen: number
+          category_id: string | null
+          created_at: string
+          description: string
+          duplicate_group_id: string | null
+          fingerprint: string
+          id: string
+          import_source_id: string | null
+          occurred_on: string
+          payment_method_id: string
+          source_row_number: number | null
+          updated_at: string
+          user_id: string
+          vendor_id: string | null
+          vendor_norm: string | null
+          vendor_raw: string | null
+        }
+        Insert: {
+          amount_yen: number
+          category_id?: string | null
+          created_at?: string
+          description: string
+          duplicate_group_id?: string | null
+          fingerprint: string
+          id?: string
+          import_source_id?: string | null
+          occurred_on: string
+          payment_method_id: string
+          source_row_number?: number | null
+          updated_at?: string
+          user_id?: string
+          vendor_id?: string | null
+          vendor_norm?: string | null
+          vendor_raw?: string | null
+        }
+        Update: {
+          amount_yen?: number
+          category_id?: string | null
+          created_at?: string
+          description?: string
+          duplicate_group_id?: string | null
+          fingerprint?: string
+          id?: string
+          import_source_id?: string | null
+          occurred_on?: string
+          payment_method_id?: string
+          source_row_number?: number | null
+          updated_at?: string
+          user_id?: string
+          vendor_id?: string | null
+          vendor_norm?: string | null
+          vendor_raw?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_import_source_id_fkey"
+            columns: ["import_source_id"]
+            isOneToOne: false
+            referencedRelation: "import_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "payment_methods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transfers: {
+        Row: {
+          amount_yen: number
+          created_at: string
+          from_account_id: string
+          id: string
+          note: string | null
+          occurred_on: string
+          to_account_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_yen: number
+          created_at?: string
+          from_account_id: string
+          id?: string
+          note?: string | null
+          occurred_on: string
+          to_account_id: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          amount_yen?: number
+          created_at?: string
+          from_account_id?: string
+          id?: string
+          note?: string | null
+          occurred_on?: string
+          to_account_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transfers_from_account_id_fkey"
+            columns: ["from_account_id"]
+            isOneToOne: false
+            referencedRelation: "account_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfers_from_account_id_fkey"
+            columns: ["from_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfers_to_account_id_fkey"
+            columns: ["to_account_id"]
+            isOneToOne: false
+            referencedRelation: "account_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfers_to_account_id_fkey"
+            columns: ["to_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_category_preferences: {
+        Row: {
+          category_id: string
+          created_at: string
+          id: string
+          is_visible: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          id?: string
+          is_visible?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          id?: string
+          is_visible?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_category_preferences_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_aliases: {
+        Row: {
+          alias: string
+          confidence_score: number | null
+          created_at: string
+          id: string
+          vendor_id: string
+        }
+        Insert: {
+          alias: string
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          vendor_id: string
+        }
+        Update: {
+          alias?: string
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_aliases_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_rules: {
+        Row: {
+          business_ratio: number
+          category_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          is_business: boolean
+          note: string | null
+          rule_priority: number
+          vendor_id: string
+        }
+        Insert: {
+          business_ratio?: number
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_business: boolean
+          note?: string | null
+          rule_priority?: number
+          vendor_id: string
+        }
+        Update: {
+          business_ratio?: number
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_business?: boolean
+          note?: string | null
+          rule_priority?: number
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_rules_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_rules_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendors: {
+        Row: {
+          created_at: string
+          default_category_id: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          default_category_id?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          default_category_id?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendors_default_category_id_fkey"
+            columns: ["default_category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      account_balances: {
+        Row: {
+          account_type: string | null
+          asset_type: string | null
+          created_at: string | null
+          current_balance_yen: number | null
+          id: string | null
+          is_active: boolean | null
+          name: string | null
+          opened_on: string | null
+          opening_balance_yen: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+    }
     Functions: {
-      find_duplicate_transactions: {
-        Args: Record<string, never>;
-        Returns: unknown;
-      };
-    };
-    Enums: Record<string, never>;
-    CompositeTypes: Record<string, never>;
-  };
-};
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
+  public: {
+    Enums: {},
+  },
+} as const
+

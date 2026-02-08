@@ -25,14 +25,14 @@ export default function TemplatesPage() {
 
     async function handleCreate() {
         try {
-            const { error } = await supabase
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { error } = await (supabase as any)
                 .from("export_templates")
                 .insert({
                     name: newTemplate.name,
-                    config: {
-                        columns: newTemplate.columns,
-                        filters: newTemplate.filters
-                    }
+                    format: "csv",
+                    columns: newTemplate.columns,
+                    filters: newTemplate.filters
                 });
 
             if (error) throw error;

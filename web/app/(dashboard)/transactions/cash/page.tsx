@@ -60,6 +60,7 @@ export default function CashEntryPage() {
                     payment_method_id: cashPaymentId,
                     vendor_raw: formData.description,
                     vendor_norm: formData.description.toLowerCase().replace(/\s+/g, ""),
+                    category_id: formData.category_id || null,
                     fingerprint: "manual-" + Date.now(), // Simple fingerprint for manual entry
                 })
                 .select()
@@ -75,7 +76,6 @@ export default function CashEntryPage() {
                         transaction_id: transaction.id,
                         is_business: true,
                         business_ratio: formData.business_ratio,
-                        category_id: formData.category_id || null,
                         judged_by: "manual_entry",
                         judged_at: new Date().toISOString(),
                         audit_note: null,
@@ -123,7 +123,7 @@ export default function CashEntryPage() {
                             placeholder="例: 1500"
                             className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                        <p className="text-sm text-gray-500 mt-1">支出として記録されます</p>
+                        <p className="text-sm text-gray-500 mt-1">支出として計算されます</p>
                     </div>
 
                     {/* Description */}
@@ -139,6 +139,23 @@ export default function CashEntryPage() {
                         />
                     </div>
 
+                    {/* Category */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">カテゴリー</label>
+                        <select
+                            value={formData.category_id}
+                            onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                            className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="">未設定</option>
+                            {categories.map((cat) => (
+                                <option key={cat.id} value={cat.id}>
+                                    {cat.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
                     {/* Business Flag */}
                     <div className="border-t border-gray-200 pt-6">
                         <label className="flex items-center">
@@ -148,7 +165,7 @@ export default function CashEntryPage() {
                                 onChange={(e) => setFormData({ ...formData, is_business: e.target.checked })}
                                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                             />
-                            <span className="ml-2 text-sm font-medium text-gray-700">事業経費として記録</span>
+                            <span className="ml-2 text-sm font-medium text-gray-700">事業経費として計算</span>
                         </label>
                     </div>
 
@@ -156,7 +173,7 @@ export default function CashEntryPage() {
                     {formData.is_business && (
                         <>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">按分率 (%)</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">按分率(%)</label>
                                 <input
                                     type="number"
                                     min="0"
@@ -167,21 +184,7 @@ export default function CashEntryPage() {
                                 />
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">カテゴリ</label>
-                                <select
-                                    value={formData.category_id}
-                                    onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                    <option value="">（未分類）</option>
-                                    {categories.map((cat) => (
-                                        <option key={cat.id} value={cat.id}>
-                                            {cat.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+
                         </>
                     )}
 

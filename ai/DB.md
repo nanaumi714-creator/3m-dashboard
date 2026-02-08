@@ -16,6 +16,7 @@ See `supabase/init.sql` for the actual DDL.
 | description| TEXT | Raw description from CSV. |
 | vendor_norm| TEXT | Normalized vendor name (e.g. "amazon web services" -> "amazon") |
 | vendor_id| UUID | **Phase 2**: FK to vendors table |
+| category_id| UUID | Category applied regardless of business judgment |
 | fingerprint| TEXT | Derived hash for duplicate detection. |
 | duplicate_group_id| UUID | Nullable. If set, this transaction is part of a duplicate group. |
 | user_id| UUID | Owner user id for row-level security (auth.uid). |
@@ -29,9 +30,11 @@ See `supabase/init.sql` for the actual DDL.
 | transaction_id | UUID | FK to transactions. |
 | is_business | BOOLEAN | True if this is a business expense. |
 | business_ratio | INTEGER | 0-100. Percentage deductible. |
-| category_id | UUID | **Phase 2**: FK to expense_categories |
 | judged_at | TIMESTAMP | Audit trail. |
 | note | TEXT | Audit note / context. |
+
+Notes:
+- `transaction_business_info.category_id` is deprecated. Categories now live on `transactions.category_id`.
 
 ### 3. `receipts`
 **Role**: Attachments and OCR text linked to transactions.
@@ -67,7 +70,9 @@ See `supabase/init.sql` for the actual DDL.
 | Column | Type | Purpose |
 |--------|------|---------|
 | name | TEXT | Human readable name (e.g. "Rakuten Card"). |
-| type | TEXT | 'credit_card', 'bank_account', 'cash'. |
+| type | TEXT | cash/bank/credit/emoney/qr/other. |
+| settlement_timing | TEXT | immediate / next_month（残高反映タイミング）. |
+| user_id | UUID | NULLはシステム既定、値ありはユーザー定義。 |
 
 ## Phase 2 Tables
 
@@ -195,7 +200,7 @@ Vendor Matching → vendor_aliases lookup → vendors
      ↓
 Rule Application → vendor_rules → suggested judgment
      ↓
-User Confirmation → transaction_business_info (with category_id)
+User Confirmation → transactions.category_id + transaction_business_info (business flags)
 ```
 
 ## Phase 3 Data Flow (OCR + Export + Search)
@@ -213,3 +218,34 @@ Export → export_templates → export_history
 **Receipts Storage Notes**
 - `receipts.user_id` stores the Supabase auth user id to align Storage ownership.
 - `receipts.storage_url` stores the Storage path (bucket object key), not a public URL.
+
+
+## Phase 4 Tables (Asset Management)
+
+### 14. `accounts`
+**Role**: 残高を管理する場所（財布、銀行、PayPay、Suicaなど）。
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| user_id | UUID | Owner user id for row-level security (auth.uid). |
+| name | TEXT | 管理場所名（例: 財布、三菱UFJ銀行）。 |
+| asset_type | TEXT | cash / qr / bank / emoney。 |
+| opening_balance_yen | BIGINT | 初期残高（JPY）。 |
+| is_active | BOOLEAN | 非表示化・運用停止用のフラグ。 |
+
+### 15. `transfers`
+**Role**: 管理場所間の資金移動（振替）。
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| user_id | UUID | Owner user id for row-level security (auth.uid). |
+| from_account_id | UUID | 振替元の管理場所。 |
+| to_account_id | UUID | 振替先の管理場所。 |
+| amount_yen | BIGINT | 正の金額のみ（> 0）。 |
+| occurred_on | DATE | 振替日。 |
+| note | TEXT | メモ。 |
+
+Notes:
+- 振替は資産総額を変えない内部移動として扱う。
+- `from_account_id <> to_account_id` の制約で自己振替を禁止。
+- カード系は `payment_methods.settlement_timing = 'next_month'` で未払金として別集計する。

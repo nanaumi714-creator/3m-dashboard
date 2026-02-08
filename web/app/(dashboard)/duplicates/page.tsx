@@ -24,7 +24,8 @@ export default function DuplicatesPage() {
             setLoading(true);
 
             // Find transactions with same fingerprint
-            const { data, error } = await supabase.rpc("find_duplicate_transactions");
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data, error } = await (supabase as any).rpc("find_duplicate_transactions");
 
             if (error) throw error;
 

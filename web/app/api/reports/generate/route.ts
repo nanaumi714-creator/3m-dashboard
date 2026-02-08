@@ -20,10 +20,9 @@ export async function POST(request: NextRequest) {
         *,
         transaction_business_info (
           is_business,
-          business_ratio,
-          category_id,
-          expense_categories (name)
+          business_ratio
         ),
+        expense_categories (name),
         payment_methods (name),
         vendors (name)
       `);
@@ -80,14 +79,14 @@ export async function POST(request: NextRequest) {
 }
 
 function generateCSV(transactions: any[]): string {
-    const headers = ["取引日", "内容", "取引先", "金額", "カテゴリ", "事業", "按分率"];
+    const headers = ["日付", "内容", "支払先", "金額", "カテゴリ", "事業", "按分率"];
     const rows = transactions.map((t) => [
         t.occurred_on,
         t.description,
         t.vendors?.name || "",
         t.amount_yen,
-        t.transaction_business_info?.expense_categories?.name || "",
-        t.transaction_business_info?.is_business ? "○" : "",
+        t.expense_categories?.name || "",
+        t.transaction_business_info?.is_business ? "〇" : "",
         t.transaction_business_info?.business_ratio || ""
     ]);
 
