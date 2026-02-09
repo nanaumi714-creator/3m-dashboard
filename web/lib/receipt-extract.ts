@@ -14,12 +14,18 @@ type OpenAiMessage = {
   content: string;
 };
 
-type OpenAiResponse = {
-  choices?: Array<{
-    message?: {
-      content?: string | null;
-    };
-  }>;
+type ResponsesApiTextPart = {
+  type?: string;
+  text?: string;
+};
+
+type ResponsesApiOutputItem = {
+  content?: ResponsesApiTextPart[];
+};
+
+type ResponsesApiResponse = {
+  output_text?: string;
+  output?: ResponsesApiOutputItem[];
 };
 
 type ExtractContext = {
@@ -145,13 +151,148 @@ function parseJsonCandidate(content: string): Record<string, unknown> | null {
   }
 }
 
+type JsonSchemaProperty = {
+  type: "string" | "integer" | "number" | "object" | "array";
+  description?: string;
+  pattern?: string;
+  minimum?: number;
+  items?: JsonSchemaProperty;
+  properties?: Record<string, JsonSchemaProperty>;
+  required?: string[];
+  additionalProperties?: boolean;
+  enum?: string[];
+};
+
+type JsonSchemaFormat = {
+  type: "json_schema";
+  name: string;
+  description: string;
+  schema: JsonSchemaProperty;
+  strict: boolean;
+};
+
+function buildReceiptFormat(
+  categoryList: string[],
+  paymentMethodList: string[]
+): JsonSchemaFormat {
+  const receiptProperties: Record<string, JsonSchemaProperty> = {
+    occurred_on: {
+      type: "string",
+      description: "Receipt date in YYYY-MM-DD format.",
+      pattern: "^\\d{4}-\\d{2}-\\d{2}$",
+    },
+    total_amount: {
+      type: "integer",
+      description: "Total amount in JPY.",
+      minimum: 0,
+    },
+    vendor_name: {
+      type: "string",
+      description: "Merchant name from the receipt.",
+    },
+    memo: {
+      type: "string",
+      description: "Short adjustment or clarification note.",
+    },
+  };
+
+  if (categoryList.length > 0) {
+    receiptProperties.category = {
+      type: "string",
+      description: "Expense category.",
+      enum: categoryList,
+    };
+  }
+
+  if (paymentMethodList.length > 0) {
+    receiptProperties.payment_method = {
+      type: "string",
+      description: "Payment method.",
+      enum: paymentMethodList,
+    };
+  }
+
+  const itemSchema: JsonSchemaProperty = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      name: {
+        type: "string",
+        description: "Line item name.",
+      },
+      quantity: {
+        type: "integer",
+        description: "Quantity of the item.",
+        minimum: 1,
+      },
+      unit_price: {
+        type: "integer",
+        description: "Unit price in JPY.",
+        minimum: 0,
+      },
+      line_total: {
+        type: "integer",
+        description: "Line total in JPY.",
+        minimum: 0,
+      },
+    },
+  };
+
+  return {
+    type: "json_schema",
+    name: "receipt_extract",
+    description: "Extracted receipt fields from OCR text.",
+    strict: false,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        receipt: {
+          type: "object",
+          additionalProperties: false,
+          properties: receiptProperties,
+        },
+        items: {
+          type: "array",
+          items: itemSchema,
+        },
+      },
+    },
+  };
+}
+
+function extractResponseText(data: ResponsesApiResponse): string | null {
+  if (typeof data.output_text === "string") {
+    return data.output_text;
+  }
+
+  if (!data.output) {
+    return null;
+  }
+
+  for (const item of data.output) {
+    const parts = item.content;
+    if (!parts) continue;
+    for (const part of parts) {
+      if (
+        (part.type === "output_text" || part.type === "text") &&
+        typeof part.text === "string"
+      ) {
+        return part.text;
+      }
+    }
+  }
+
+  return null;
+}
+
 const SYSTEM_PROMPT = `You are a data-normalization engine for receipt OCR.
 
-Return ONLY valid JSON.
-Do not include markdown, comments, or explanations.
+Return ONLY valid JSON. No markdown, comments, or explanations.
 
-STRICT RULES:
-- The output MUST conform exactly to the provided JSON schema.
+Constraints:
+- Output MUST conform exactly to the provided JSON schema.
+- OCR text is in Japanese. Use it as-is; do NOT translate or rewrite it.
 - Do NOT invent category names or payment methods.
 - receipt.category MUST be one of the provided category list.
 - receipt.payment_method MUST be one of the provided payment method list.
@@ -159,7 +300,7 @@ STRICT RULES:
 - All monetary values MUST be integers in JPY.
 - Do NOT output null. Omit optional fields if unknown.
 
-DATA NORMALIZATION RULES:
+Normalization:
 - Prices are tax-included (税込) unless explicitly stated otherwise.
 - If quantity is missing, assume quantity = 1.
 - If an item line includes a number (e.g. "牛乳 2"), interpret it as quantity.
@@ -167,7 +308,7 @@ DATA NORMALIZATION RULES:
 - If OCR text is partially garbled, infer conservatively using common Japanese receipt patterns.
 - Do NOT guess missing dates, phone numbers, or store names. Omit them if unclear.
 
-CONSISTENCY RULE:
+Consistency:
 - If receipt totals are present, the sum of item prices MUST equal receipt.total_amount.
 - If adjustment is required, modify ONLY the most ambiguous item prices.
 - Any adjustment MUST be explained briefly in receipt.memo.`;
@@ -181,42 +322,19 @@ function buildUserPrompt(
   const paymentMethodLines =
     paymentMethodList.length > 0 ? paymentMethodList.join("\n") : "(none)";
 
-  return `【参照マスタ】
-有効なカテゴリ一覧（この中から1つだけ選択）:
+  return `Reference masters
+Valid categories (select one):
 ${categoryLines}
 
-有効な支払手段一覧（この中から1つだけ選択）:
+Valid payment methods (select one):
 ${paymentMethodLines}
 
-【OCRテキスト】
+OCR text (Japanese, do not translate):
 <<<
 ${ocrText}
 >>>
 
-上記OCRテキストを解析し、
-参照マスタに厳密に従って、
-以下のJSON構造で出力せよ。
-JSON以外は一切出力してはならない。
-
-JSON schema:
-{
-  "receipt": {
-    "occurred_on": "YYYY-MM-DD",
-    "total_amount": 0,
-    "vendor_name": "string",
-    "memo": "string",
-    "category": "string",
-    "payment_method": "string"
-  },
-  "items": [
-    {
-      "name": "string",
-      "quantity": 1,
-      "unit_price": 0,
-      "line_total": 0
-    }
-  ]
-}`;
+Analyze the OCR text and output ONLY JSON that matches the provided schema.`;
 }
 
 export async function extractReceiptFields(
@@ -243,7 +361,7 @@ export async function extractReceiptFields(
     return extractFallback(trimmedText);
   }
 
-  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+  const model = process.env.OPENAI_MODEL || "gpt-5-nano";
 
   const messages: OpenAiMessage[] = [
     {
@@ -261,7 +379,7 @@ export async function extractReceiptFields(
   ];
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -269,9 +387,20 @@ export async function extractReceiptFields(
       },
       body: JSON.stringify({
         model,
-        messages,
-        temperature: 1,
-        response_format: { type: "json_object" },
+        input: messages,
+        text: {
+          format: {
+            ...buildReceiptFormat(
+              context.categoryList,
+              context.paymentMethodList
+            ),
+          },
+          verbosity: "low",
+        },
+        reasoning: {
+          effort: "minimal",
+        },
+        store: true,
       }),
     });
 
@@ -285,8 +414,8 @@ export async function extractReceiptFields(
       return extractFallback(trimmedText);
     }
 
-    const data = (await response.json()) as OpenAiResponse;
-    const content = data.choices?.[0]?.message?.content;
+    const data = (await response.json()) as ResponsesApiResponse;
+    const content = extractResponseText(data);
     if (!content) {
       return extractFallback(trimmedText);
     }
