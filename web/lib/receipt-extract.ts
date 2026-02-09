@@ -145,13 +145,13 @@ function parseJsonCandidate(content: string): Record<string, unknown> | null {
   }
 }
 
-const SYSTEM_PROMPT = `You are a data-normalization engine for receipt OCR.
+const SYSTEM_PROMPT = `You are a data-normalization engine for Japanese receipt OCR.
 
-Return ONLY valid JSON.
-Do not include markdown, comments, or explanations.
+Return ONLY valid JSON. No markdown, comments, or explanations.
 
-STRICT RULES:
-- The output MUST conform exactly to the provided JSON schema.
+Constraints:
+- Output MUST conform exactly to the provided JSON schema.
+- OCR text is in Japanese. Use it as-is; do NOT translate or rewrite it.
 - Do NOT invent category names or payment methods.
 - receipt.category MUST be one of the provided category list.
 - receipt.payment_method MUST be one of the provided payment method list.
@@ -159,7 +159,7 @@ STRICT RULES:
 - All monetary values MUST be integers in JPY.
 - Do NOT output null. Omit optional fields if unknown.
 
-DATA NORMALIZATION RULES:
+Normalization:
 - Prices are tax-included (税込) unless explicitly stated otherwise.
 - If quantity is missing, assume quantity = 1.
 - If an item line includes a number (e.g. "牛乳 2"), interpret it as quantity.
@@ -167,7 +167,7 @@ DATA NORMALIZATION RULES:
 - If OCR text is partially garbled, infer conservatively using common Japanese receipt patterns.
 - Do NOT guess missing dates, phone numbers, or store names. Omit them if unclear.
 
-CONSISTENCY RULE:
+Consistency:
 - If receipt totals are present, the sum of item prices MUST equal receipt.total_amount.
 - If adjustment is required, modify ONLY the most ambiguous item prices.
 - Any adjustment MUST be explained briefly in receipt.memo.`;
@@ -181,42 +181,19 @@ function buildUserPrompt(
   const paymentMethodLines =
     paymentMethodList.length > 0 ? paymentMethodList.join("\n") : "(none)";
 
-  return `【参照マスタ】
-有効なカテゴリ一覧（この中から1つだけ選択）:
+  return `Reference masters
+Valid categories (select one):
 ${categoryLines}
 
-有効な支払手段一覧（この中から1つだけ選択）:
+Valid payment methods (select one):
 ${paymentMethodLines}
 
-【OCRテキスト】
+OCR text (Japanese, do not translate):
 <<<
 ${ocrText}
 >>>
 
-上記OCRテキストを解析し、
-参照マスタに厳密に従って、
-以下のJSON構造で出力せよ。
-JSON以外は一切出力してはならない。
-
-JSON schema:
-{
-  "receipt": {
-    "occurred_on": "YYYY-MM-DD",
-    "total_amount": 0,
-    "vendor_name": "string",
-    "memo": "string",
-    "category": "string",
-    "payment_method": "string"
-  },
-  "items": [
-    {
-      "name": "string",
-      "quantity": 1,
-      "unit_price": 0,
-      "line_total": 0
-    }
-  ]
-}`;
+Analyze the OCR text and output ONLY JSON that matches the provided schema.`;
 }
 
 export async function extractReceiptFields(
@@ -271,7 +248,45 @@ export async function extractReceiptFields(
         model,
         messages,
         temperature: 1,
-        response_format: { type: "json_object" },
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "receipt_extract",
+            strict: true,
+            schema: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                receipt: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    occurred_on: { type: "string" },
+                    total_amount: { type: "number" },
+                    vendor_name: { type: "string" },
+                    memo: { type: "string" },
+                    category: { type: "string" },
+                    payment_method: { type: "string" },
+                  },
+                },
+                items: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                      name: { type: "string" },
+                      quantity: { type: "number" },
+                      unit_price: { type: "number" },
+                      line_total: { type: "number" },
+                    },
+                  },
+                },
+              },
+              required: ["receipt"],
+            },
+          },
+        },
       }),
     });
 
