@@ -116,7 +116,7 @@
 ### New Features
 - Authentication/authorization
 - Mobile-optimized UI
-- Offline support (optional)
+- Offline support (optional; policy only, implementation not completed yet)
 - Data migration from local
 
 ---
