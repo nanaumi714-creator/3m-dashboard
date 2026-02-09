@@ -455,7 +455,7 @@ MIT License - 詳細は [LICENSE](LICENSE) を参照
 - Phase 1: 基本機能
 - Phase 2: 効率化・複数入力対応
 - Phase 3: OCR・高度検索・レポート
-- Phase 4: クラウド移行準備・モバイル最適化
+- Phase 4: クラウド移行準備・モバイル最適化（オフライン対応は optional 方針だが未整備）
 
 ### 今後の拡張 (任意)
 - [ ] AI カテゴリ自動判定
