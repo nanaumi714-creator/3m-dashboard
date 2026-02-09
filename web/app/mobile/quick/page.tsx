@@ -5,8 +5,7 @@ import { supabase } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
 import CameraCapture from "../../(dashboard)/components/CameraCapture";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Account = any;
+type Account = Database["public"]["Tables"]["accounts"]["Row"];
 
 export default function MobileQuickEntryPage() {
   const [activeTab, setActiveTab] = useState<"expense" | "transfer">("expense");
@@ -25,8 +24,7 @@ export default function MobileQuickEntryPage() {
 
   useEffect(() => {
     async function loadAccounts() {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any).from("accounts").select("*").order("name");
+      const { data, error } = await supabase.from("accounts").select("*").order("name");
       if (error) {
         console.error(error);
         return;
@@ -58,8 +56,7 @@ export default function MobileQuickEntryPage() {
       if (paymentMethodError) throw paymentMethodError;
       if (!paymentMethod) throw new Error("支払い方法が見つかりません。先に支払い方法を登録してください。");
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any).from("transactions").insert({
+      const { error } = await supabase.from("transactions").insert({
         occurred_on: new Date().toISOString().split("T")[0],
         description,
         amount_yen: -Math.abs(parseInt(amount, 10)),
@@ -95,8 +92,7 @@ export default function MobileQuickEntryPage() {
 
     try {
       setLoading(true);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any).from("transfers").insert({
+      const { error } = await supabase.from("transfers").insert({
         from_account_id: fromAccountId,
         to_account_id: toAccountId,
         amount_yen: Math.abs(Math.trunc(Number(transferAmount))),
