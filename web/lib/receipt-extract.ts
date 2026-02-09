@@ -14,12 +14,18 @@ type OpenAiMessage = {
   content: string;
 };
 
-type OpenAiResponse = {
-  choices?: Array<{
-    message?: {
-      content?: string | null;
-    };
-  }>;
+type ResponsesApiTextPart = {
+  type?: string;
+  text?: string;
+};
+
+type ResponsesApiOutputItem = {
+  content?: ResponsesApiTextPart[];
+};
+
+type ResponsesApiResponse = {
+  output_text?: string;
+  output?: ResponsesApiOutputItem[];
 };
 
 type ExtractContext = {
@@ -145,7 +151,142 @@ function parseJsonCandidate(content: string): Record<string, unknown> | null {
   }
 }
 
-const SYSTEM_PROMPT = `You are a data-normalization engine for Japanese receipt OCR.
+type JsonSchemaProperty = {
+  type: "string" | "integer" | "number" | "object" | "array";
+  description?: string;
+  pattern?: string;
+  minimum?: number;
+  items?: JsonSchemaProperty;
+  properties?: Record<string, JsonSchemaProperty>;
+  required?: string[];
+  additionalProperties?: boolean;
+  enum?: string[];
+};
+
+type JsonSchemaFormat = {
+  type: "json_schema";
+  name: string;
+  description: string;
+  schema: JsonSchemaProperty;
+  strict: boolean;
+};
+
+function buildReceiptFormat(
+  categoryList: string[],
+  paymentMethodList: string[]
+): JsonSchemaFormat {
+  const receiptProperties: Record<string, JsonSchemaProperty> = {
+    occurred_on: {
+      type: "string",
+      description: "Receipt date in YYYY-MM-DD format.",
+      pattern: "^\\d{4}-\\d{2}-\\d{2}$",
+    },
+    total_amount: {
+      type: "integer",
+      description: "Total amount in JPY.",
+      minimum: 0,
+    },
+    vendor_name: {
+      type: "string",
+      description: "Merchant name from the receipt.",
+    },
+    memo: {
+      type: "string",
+      description: "Short adjustment or clarification note.",
+    },
+  };
+
+  if (categoryList.length > 0) {
+    receiptProperties.category = {
+      type: "string",
+      description: "Expense category.",
+      enum: categoryList,
+    };
+  }
+
+  if (paymentMethodList.length > 0) {
+    receiptProperties.payment_method = {
+      type: "string",
+      description: "Payment method.",
+      enum: paymentMethodList,
+    };
+  }
+
+  const itemSchema: JsonSchemaProperty = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      name: {
+        type: "string",
+        description: "Line item name.",
+      },
+      quantity: {
+        type: "integer",
+        description: "Quantity of the item.",
+        minimum: 1,
+      },
+      unit_price: {
+        type: "integer",
+        description: "Unit price in JPY.",
+        minimum: 0,
+      },
+      line_total: {
+        type: "integer",
+        description: "Line total in JPY.",
+        minimum: 0,
+      },
+    },
+  };
+
+  return {
+    type: "json_schema",
+    name: "receipt_extract",
+    description: "Extracted receipt fields from OCR text.",
+    strict: false,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        receipt: {
+          type: "object",
+          additionalProperties: false,
+          properties: receiptProperties,
+        },
+        items: {
+          type: "array",
+          items: itemSchema,
+        },
+      },
+    },
+  };
+}
+
+function extractResponseText(data: ResponsesApiResponse): string | null {
+  if (typeof data.output_text === "string") {
+    return data.output_text;
+  }
+
+  if (!data.output) {
+    return null;
+  }
+
+  for (const item of data.output) {
+    const parts = item.content;
+    if (!parts) continue;
+    for (const part of parts) {
+      if (
+        (part.type === "output_text" || part.type === "text") &&
+        typeof part.text === "string"
+      ) {
+        return part.text;
+      }
+    }
+  }
+
+  return null;
+}
+
+const SYSTEM_PROMPT = `You are a data-normalization engine for receipt OCR.
 
 Return ONLY valid JSON. No markdown, comments, or explanations.
 
@@ -220,7 +361,7 @@ export async function extractReceiptFields(
     return extractFallback(trimmedText);
   }
 
-  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+  const model = process.env.OPENAI_MODEL || "gpt-5-nano";
 
   const messages: OpenAiMessage[] = [
     {
@@ -238,7 +379,7 @@ export async function extractReceiptFields(
   ];
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -246,47 +387,20 @@ export async function extractReceiptFields(
       },
       body: JSON.stringify({
         model,
-        messages,
-        temperature: 1,
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "receipt_extract",
-            strict: true,
-            schema: {
-              type: "object",
-              additionalProperties: false,
-              properties: {
-                receipt: {
-                  type: "object",
-                  additionalProperties: false,
-                  properties: {
-                    occurred_on: { type: "string" },
-                    total_amount: { type: "number" },
-                    vendor_name: { type: "string" },
-                    memo: { type: "string" },
-                    category: { type: "string" },
-                    payment_method: { type: "string" },
-                  },
-                },
-                items: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    additionalProperties: false,
-                    properties: {
-                      name: { type: "string" },
-                      quantity: { type: "number" },
-                      unit_price: { type: "number" },
-                      line_total: { type: "number" },
-                    },
-                  },
-                },
-              },
-              required: ["receipt"],
-            },
+        input: messages,
+        text: {
+          format: {
+            ...buildReceiptFormat(
+              context.categoryList,
+              context.paymentMethodList
+            ),
           },
+          verbosity: "low",
         },
+        reasoning: {
+          effort: "minimal",
+        },
+        store: true,
       }),
     });
 
@@ -300,8 +414,8 @@ export async function extractReceiptFields(
       return extractFallback(trimmedText);
     }
 
-    const data = (await response.json()) as OpenAiResponse;
-    const content = data.choices?.[0]?.message?.content;
+    const data = (await response.json()) as ResponsesApiResponse;
+    const content = extractResponseText(data);
     if (!content) {
       return extractFallback(trimmedText);
     }
