@@ -147,6 +147,7 @@ Notes:
 | columns | JSONB | Output column definitions |
 | filters | JSONB | Default filters |
 | created_at | TIMESTAMP | Created time |
+| user_id | UUID | Owner user id for row-level security (auth.uid). |
 
 ### 11. `export_history`
 **Role**: Audit trail for export executions.
@@ -158,6 +159,7 @@ Notes:
 | filters | JSONB | Filters applied at export time |
 | row_count | INTEGER | Rows exported |
 | created_at | TIMESTAMP | Export time |
+| user_id | UUID | Owner user id for row-level security (auth.uid). |
 
 ### 12. `saved_searches`
 **Role**: Reusable advanced search presets.
@@ -168,6 +170,7 @@ Notes:
 | query | TEXT | Full-text search input |
 | filters | JSONB | Structured filters |
 | created_at | TIMESTAMP | Created time |
+| user_id | UUID | Owner user id for row-level security (auth.uid). |
 
 ### 13. `ocr_usage_logs`
 **Role**: OCR usage tracking for monthly caps.
@@ -180,6 +183,7 @@ Notes:
 | pages | INTEGER | Billable pages |
 | error_message | TEXT | Failure context |
 | request_at | TIMESTAMP | OCR request timestamp |
+| user_id | UUID | Owner user id for row-level security (auth.uid). |
 
 ---
 
