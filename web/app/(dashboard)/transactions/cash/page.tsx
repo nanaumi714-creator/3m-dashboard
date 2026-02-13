@@ -85,7 +85,7 @@ export default function CashEntryPage() {
             }
 
             alert("現金取引を登録しました");
-            router.push("/transactions");
+            router.replace("/transactions");
         } catch (error) {
             console.error(error);
             alert("登録に失敗しました: " + (error instanceof Error ? error.message : ""));

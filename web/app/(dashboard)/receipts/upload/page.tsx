@@ -164,7 +164,7 @@ export default function ReceiptUploadPage() {
       const response = await fetch("/api/receipts/process", { method: "POST", body: formData });
       if (!response.ok) throw new Error("保存に失敗しました。");
       const payload = await response.json();
-      router.push(`/receipts/complete/${payload.transactionId}`);
+      router.replace(`/receipts/complete/${payload.transactionId}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "保存に失敗しました。";
       setErrorMessage(message);

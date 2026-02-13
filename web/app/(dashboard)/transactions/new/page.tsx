@@ -82,7 +82,7 @@ export default function TransactionNewPage() {
         });
       }
       setStatusMessage("登録が完了しました。");
-      router.push("/transactions");
+      router.replace("/transactions");
     } catch (err: any) {
       setStatusMessage(err.message || "エラーが発生しました。");
     } finally { setSubmitting(false); }

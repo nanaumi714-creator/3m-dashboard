@@ -3,26 +3,63 @@ import type { NextRequest } from "next/server";
 import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 import { Database } from "@/lib/database.types";
 
+const LAST_SEEN_COOKIE = "last_seen";
+const REVISIT_RESET_HOURS = Number(process.env.REVISIT_RESET_HOURS ?? "24");
+const REVISIT_RESET_MS = REVISIT_RESET_HOURS * 60 * 60 * 1000;
+
+const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/transactions",
+  "/vendors",
+  "/categories",
+  "/receipts",
+  "/reports",
+  "/templates",
+  "/gmail",
+  "/duplicates",
+  "/expenses",
+  "/triage",
+  "/imports",
+  "/balance",
+  "/accounts",
+  "/payment-methods",
+  "/transfers",
+  "/exports",
+  "/mobile",
+];
+
+function setLastSeenCookie(response: NextResponse, now: number) {
+  response.cookies.set({
+    name: LAST_SEEN_COOKIE,
+    value: String(now),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  });
+}
+
+function isProtectedPath(pathname: string) {
+  return pathname === "/" || PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
 export async function middleware(request: NextRequest) {
+  const now = Date.now();
+  const pathname = request.nextUrl.pathname;
   const res = NextResponse.next();
+  setLastSeenCookie(res, now);
+
   const supabase = createMiddlewareClient<Database>({ req: request, res });
 
   const {
     data: { session },
   } = await supabase.auth.getSession();
   const hasSession = Boolean(session);
+  const isProtected = isProtectedPath(pathname);
 
   // Protect dashboard routes
-  if (request.nextUrl.pathname === "/" ||
-    request.nextUrl.pathname.startsWith("/dashboard") ||
-    request.nextUrl.pathname.startsWith("/transactions") ||
-    request.nextUrl.pathname.startsWith("/vendors") ||
-    request.nextUrl.pathname.startsWith("/categories") ||
-    request.nextUrl.pathname.startsWith("/receipts") ||
-    request.nextUrl.pathname.startsWith("/reports") ||
-    request.nextUrl.pathname.startsWith("/templates") ||
-    request.nextUrl.pathname.startsWith("/gmail") ||
-    request.nextUrl.pathname.startsWith("/duplicates")) {
+  if (isProtected) {
 
     if (!hasSession) {
       // Check for auth bypass in local development
@@ -32,17 +69,34 @@ export async function middleware(request: NextRequest) {
 
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = "/login";
-      redirectUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
-      return NextResponse.redirect(redirectUrl);
+      redirectUrl.searchParams.set("redirectTo", pathname);
+
+      const redirectResponse = NextResponse.redirect(redirectUrl);
+      setLastSeenCookie(redirectResponse, now);
+      return redirectResponse;
+    }
+
+    if (pathname !== "/") {
+      const lastSeenRaw = request.cookies.get(LAST_SEEN_COOKIE)?.value;
+      const lastSeen = Number(lastSeenRaw);
+      const shouldResetToHome = Number.isFinite(lastSeen) && now - lastSeen >= REVISIT_RESET_MS;
+
+      if (shouldResetToHome) {
+        const redirectResponse = NextResponse.redirect(new URL("/", request.url));
+        setLastSeenCookie(redirectResponse, now);
+        return redirectResponse;
+      }
     }
   }
 
   // Redirect authenticated users away from auth pages
   if (hasSession && (
-    request.nextUrl.pathname === "/login" ||
-    request.nextUrl.pathname === "/signup"
+    pathname === "/login" ||
+    pathname === "/signup"
   )) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    const redirectResponse = NextResponse.redirect(new URL("/", request.url));
+    setLastSeenCookie(redirectResponse, now);
+    return redirectResponse;
   }
 
   return res;
@@ -50,17 +104,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/",
-    "/dashboard/:path*",
-    "/transactions/:path*",
-    "/vendors/:path*",
-    "/categories/:path*",
-    "/receipts/:path*",
-    "/reports/:path*",
-    "/templates/:path*",
-    "/gmail/:path*",
-    "/duplicates/:path*",
-    "/login",
-    "/signup",
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|manifest.webmanifest|sw.js|api/).*)",
   ],
 };

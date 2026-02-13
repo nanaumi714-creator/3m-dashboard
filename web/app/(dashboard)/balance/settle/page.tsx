@@ -113,7 +113,7 @@ export default function SettlePage() {
                 throw insertError;
             }
 
-            router.push("/balance");
+            router.replace("/balance");
         } catch (err) {
             console.error(err);
             setError("登録に失敗しました");

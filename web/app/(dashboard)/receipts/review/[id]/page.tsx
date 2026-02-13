@@ -229,7 +229,7 @@ export default function ReceiptReviewPage() {
       }
 
       const payload = (await response.json()) as { transactionId: string };
-      router.push(`/receipts/complete/${payload.transactionId}`);
+      router.replace(`/receipts/complete/${payload.transactionId}`);
     } catch (error) {
       console.error("Save failed", error);
       setStatusMessage(
