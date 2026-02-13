@@ -35,6 +35,10 @@ export function CreateMenu() {
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
                                 CSV読込
                             </Link>
+                            <Link href="/import-jobs" className="flex items-center gap-3 px-4 py-3 rounded-xl text-[12px] font-bold text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 8h10" /><path d="M7 12h6" /><path d="M7 16h8" /></svg>
+                                明細の整理
+                            </Link>
                         </div>
                     </div>
                 )}
