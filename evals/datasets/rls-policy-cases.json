@@ -1,0 +1,30 @@
+[
+    {
+        "id": "rls-sec-001",
+        "description": "Publicly readable table",
+        "input_code": "create policy \"Public read\" on private_data for select using (true);",
+        "expected_review_category": "P0",
+        "expected_finding": "RLS policy allows public access. Restrict to authenticated users or specific roles."
+    },
+    {
+        "id": "rls-sec-002",
+        "description": "Missing WITH CHECK for INSERT/UPDATE",
+        "input_code": "create policy \"User update\" on user_profiles for update using (auth.uid() = id);",
+        "expected_review_category": "P0",
+        "expected_finding": "UPDATE policy missing `with check` clause. Users could potentially update a row to belong to someone else."
+    },
+    {
+        "id": "rls-sec-003",
+        "description": "Correct RLS Pattern",
+        "input_code": "create policy \"User own data\" on user_data for all using (auth.uid() = user_id) with check (auth.uid() = user_id);",
+        "expected_review_category": "None",
+        "expected_finding": "Correct RLS implementation."
+    },
+    {
+        "id": "rls-sec-004",
+        "description": "Service Key Leak",
+        "input_code": "const supabase = createClient(URL, process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY);",
+        "expected_review_category": "P0",
+        "expected_finding": "Service Role Key exposed to client (via NEXT_PUBLIC prefix or usage in client component). use anon key for client."
+    }
+]

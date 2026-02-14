@@ -1,0 +1,23 @@
+[
+    {
+        "id": "money-calc-001",
+        "description": "Tax calculation with float",
+        "input_code": "const tax = price * 0.1;",
+        "expected_review_category": "P0",
+        "expected_finding": "Use integer math (price * 10 / 100) and Math.floor to avoid floating point errors."
+    },
+    {
+        "id": "money-calc-002",
+        "description": "Client-side rounding",
+        "input_code": "const total = Math.round(data.price * 1.1);",
+        "expected_review_category": "P0",
+        "expected_finding": "Rounding must be performed on the server side."
+    },
+    {
+        "id": "money-calc-003",
+        "description": "Correct integer math",
+        "input_code": "const tax = Math.floor((price * 10) / 100);",
+        "expected_review_category": "None",
+        "expected_finding": "Correct implementation."
+    }
+]
