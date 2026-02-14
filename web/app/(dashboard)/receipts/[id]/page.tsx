@@ -28,27 +28,28 @@ export default function ReceiptDetailPage() {
 
     useEffect(() => {
         if (!receiptId) return;
+
+        async function loadReceipt() {
+            try {
+                if (!receiptId) return;
+                const { data, error } = await supabase
+                    .from("receipts")
+                    .select("*")
+                    .eq("id", receiptId)
+                    .single();
+
+                if (error) throw error;
+                setReceipt(data);
+                setEditedText(data.ocr_text || "");
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
+        }
+
         loadReceipt();
     }, [receiptId]);
-
-    async function loadReceipt() {
-        try {
-            if (!receiptId) return;
-            const { data, error } = await supabase
-                .from("receipts")
-                .select("*")
-                .eq("id", receiptId)
-                .single();
-
-            if (error) throw error;
-            setReceipt(data);
-            setEditedText(data.ocr_text || "");
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    }
 
     async function handleSave() {
         try {
@@ -95,7 +96,7 @@ export default function ReceiptDetailPage() {
                         <div className="mb-4">
                             <span className="text-sm text-gray-600">信頼度: </span>
                             <span className={`font-medium ${receipt.ocr_confidence > 0.8 ? 'text-green-600' :
-                                    receipt.ocr_confidence > 0.5 ? 'text-yellow-600' : 'text-red-600'
+                                receipt.ocr_confidence > 0.5 ? 'text-yellow-600' : 'text-red-600'
                                 }`}>
                                 {(receipt.ocr_confidence * 100).toFixed(1)}%
                             </span>

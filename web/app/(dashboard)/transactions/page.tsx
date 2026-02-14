@@ -41,10 +41,10 @@ export default function TransactionsPage() {
   const [from, setFrom] = useState(oneMonthAgo);
   const [to, setTo] = useState(today);
   const [onlyUntriaged, setOnlyUntriaged] = useState(false);
-  const [minAmount, setMinAmount] = useState("");
-  const [maxAmount, setMaxAmount] = useState("");
+  const [minAmount] = useState("");
+  const [maxAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [includeOcr, setIncludeOcr] = useState(true);
+  const [includeOcr] = useState(true);
   const [page, setPage] = useState(1);
   const perPage = 50;
 
@@ -55,7 +55,7 @@ export default function TransactionsPage() {
 
   // Batch selections
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isUpdatingBatch, setIsUpdatingBatch] = useState(false);
+  // const [isUpdatingBatch, setIsUpdatingBatch] = useState(false);
 
   // Debounce search input
   const handleSearch = useDebouncedCallback((value: string) => {
@@ -127,7 +127,7 @@ export default function TransactionsPage() {
   const handleBatchUpdate = async (updates: Partial<Database["public"]["Tables"]["transaction_business_info"]["Insert"]>) => {
     if (selectedIds.size === 0) return;
     if (!confirm(`${selectedIds.size}件を更新しますか？`)) return;
-    setIsUpdatingBatch(true);
+    // setIsUpdatingBatch(true);
     try {
       if (updates.category_id !== undefined) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -148,7 +148,9 @@ export default function TransactionsPage() {
       const { error } = await supabase.from("transaction_business_info").upsert(records, { onConflict: "transaction_id" });
       if (error) throw error;
       window.location.reload();
-    } catch (err) { alert("更新に失敗しました。"); } finally { setIsUpdatingBatch(false); }
+    } catch { alert("更新に失敗しました。"); } finally {
+      // setIsUpdatingBatch(false); 
+    }
   };
 
   const handleDelete = async (id: string, description: string) => {
@@ -157,9 +159,10 @@ export default function TransactionsPage() {
       const { error } = await supabase.from("transactions").delete().eq("id", id);
       if (error) throw error;
       window.location.reload();
-    } catch (err) { alert("削除に失敗しました。"); }
+    } catch { alert("削除に失敗しました。"); }
   };
 
+  /*
   const handleBatchDelete = async () => {
     if (selectedIds.size === 0) return;
     if (!confirm(`${selectedIds.size}件を削除しますか？`)) return;
@@ -168,8 +171,9 @@ export default function TransactionsPage() {
       const { error } = await supabase.from("transactions").delete().in("id", Array.from(selectedIds));
       if (error) throw error;
       window.location.reload();
-    } catch (err) { alert("一括削除に失敗しました。"); } finally { setIsUpdatingBatch(false); }
+    } catch { alert("一括削除に失敗しました。"); } finally { setIsUpdatingBatch(false); }
   };
+  */
 
   if (loading) return (
     <div className="min-h-screen pb-24 px-1 md:py-8">

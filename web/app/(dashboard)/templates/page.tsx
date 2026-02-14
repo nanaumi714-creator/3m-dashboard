@@ -4,7 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function TemplatesPage() {
-    const [templates, setTemplates] = useState([]);
+    // const [templates, setTemplates] = useState([]);
     const [showAddForm, setShowAddForm] = useState(false);
     const [newTemplate, setNewTemplate] = useState({
         name: "",

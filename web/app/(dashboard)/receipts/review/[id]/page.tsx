@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { fetchVisibleExpenseCategories } from "@/lib/expense-categories";
 
@@ -69,10 +70,10 @@ export default function ReceiptReviewPage() {
   const isDateMissing = !occurredOn;
   const isSuggestedDateMissing = !initialOccurredOn;
 
-  const ocrPreview = useMemo(() => {
-    if (!receipt?.ocr_text) return "OCRテキストがまだありません。";
-    return receipt.ocr_text;
-  }, [receipt]);
+  // const ocrPreview = useMemo(() => {
+  //     if (!receipt?.ocr_text) return "OCRテキストがまだありません。";
+  //     return receipt.ocr_text;
+  // }, [receipt]);
 
   useEffect(() => {
     async function loadData() {
@@ -522,10 +523,14 @@ export default function ReceiptReviewPage() {
               <div className="text-sm text-gray-500 mb-3">
                 {receipt.original_filename || "アップロード済み"}
               </div>
-              <img
+              <Image
                 src={receipt.storage_url}
                 alt="Receipt"
-                className="w-full rounded-lg border border-gray-200"
+                width={0}
+                height={0}
+                sizes="100vw"
+                className="w-full rounded-lg border border-gray-200 h-auto"
+                unoptimized
               />
             </div>
           </div>
