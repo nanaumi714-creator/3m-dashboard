@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "next typecheck"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.10.0",
