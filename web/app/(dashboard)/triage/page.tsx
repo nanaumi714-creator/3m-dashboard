@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Database } from "@/lib/database.types";
 import { fetchVisibleExpenseCategories } from "@/lib/expense-categories";
-import { cn } from "@/lib/utils";
+// import { cn } from "@/lib/utils";
 
 type Transaction = Database["public"]["Tables"]["transactions"]["Row"];
 type ExpenseCategory = Database["public"]["Tables"]["expense_categories"]["Row"];
@@ -72,7 +72,7 @@ export default function TriagePage() {
       if (error) throw error;
       setUntriaged((prev) => prev.filter((t) => t.id !== txId));
       setEditingTx(null);
-    } catch (e) {
+    } catch {
       alert("保存に失敗しました");
     } finally {
       setIsSubmitting(false);

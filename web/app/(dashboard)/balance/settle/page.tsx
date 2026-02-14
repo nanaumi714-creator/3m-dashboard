@@ -28,7 +28,7 @@ export default function SettlePage() {
     const [error, setError] = useState<string | null>(null);
 
     const liabilityAccount = liabilityAccounts.find((a) => a.id === liabilityId);
-    const settlementAccount = settlementAccounts.find((a) => a.id === settlementId);
+    // const settlementAccount = settlementAccounts.find((a) => a.id === settlementId);
 
     useEffect(() => {
         async function fetchAccounts() {
@@ -79,6 +79,7 @@ export default function SettlePage() {
                 setAmount(String(Math.abs(liabilityAccount.current_balance_yen)));
             }
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [liabilityAccount]);
 
     async function handleSubmit(e: React.FormEvent) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Image from "next/image";
 
 export default function CameraCapture({ onCapture }: { onCapture: (file: File) => void }) {
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -47,10 +48,14 @@ export default function CameraCapture({ onCapture }: { onCapture: (file: File) =
             {/* Preview */}
             {preview && (
                 <div className="relative">
-                    <img
+                    <Image
                         src={preview}
                         alt="Preview"
-                        className="w-full rounded-lg border border-gray-300"
+                        width={0}
+                        height={0}
+                        sizes="100vw"
+                        className="w-full rounded-lg border border-gray-300 h-auto"
+                        unoptimized
                     />
                     <button
                         onClick={() => {

@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { fetchVisibleExpenseCategories } from "@/lib/expense-categories";
 import { cn } from "@/lib/utils";
@@ -97,7 +98,7 @@ export default function ReceiptUploadPage() {
       const data = (await response.json()) as AnalyzeResponse;
       setOcrText(data.ocr.text || "");
       setStep("review");
-    } catch (error) {
+    } catch {
       setErrorMessage("画像の解析に失敗しました。もう一度お試しください。");
     } finally {
       setIsAnalyzing(false);
@@ -371,7 +372,7 @@ export default function ReceiptUploadPage() {
             {/* Preview stays below in flow, but z-index is low */}
             <div className="bg-white rounded-[40px] overflow-hidden border border-gray-100 shadow-sm relative z-0">
               <div className="absolute top-4 left-4 z-10 bg-black/50 backdrop-blur-md text-[8px] text-white px-2 py-1 rounded font-black tracking-widest uppercase">Preview</div>
-              {previewUrl && <img src={previewUrl} alt="Receipt" className="w-full h-auto object-contain bg-gray-900" />}
+              {previewUrl && <Image src={previewUrl} alt="Receipt" width={0} height={0} sizes="100vw" className="w-full h-auto object-contain bg-gray-900" unoptimized />}
             </div>
           </div>
         </div>
