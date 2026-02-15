@@ -93,7 +93,7 @@ export default function BalanceAdjustPage() {
                 throw insertError;
             }
 
-            router.push("/balance");
+            router.replace("/balance");
         } catch (err) {
             console.error(err);
             setError("調整の保存に失敗しました");

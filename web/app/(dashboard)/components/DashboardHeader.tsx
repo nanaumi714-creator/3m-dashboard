@@ -29,7 +29,7 @@ export default function DashboardHeader() {
     <header className="mb-6 pt-2 relative z-[100]">
       <div className="bg-white/80 backdrop-blur-md rounded-2xl md:rounded-[32px] border border-gray-100 shadow-sm px-4 md:px-6 py-3 md:py-4 flex items-center justify-between w-full">
         {/* Logo Section */}
-        <Link href="/" className="flex flex-col shrink-0">
+        <Link href="/" replace className="flex flex-col shrink-0">
           <h1 className="text-xl font-black text-gray-900 leading-none tracking-tighter">3M</h1>
           <p className="text-[8px] text-blue-600 font-black tracking-widest uppercase mt-1">My Money Management</p>
         </Link>
