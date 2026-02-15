@@ -169,7 +169,11 @@ export default function BalancePage() {
             </div>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <Link href="/balance/income" className="flex flex-col items-center justify-center bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:bg-blue-50 hover:border-blue-200 transition-all">
+                    <span className="text-2xl mb-1">➕</span>
+                    <span className="text-[10px] font-bold text-blue-700">入金登録</span>
+                </Link>
                 <Link href="/balance/adjust" className="flex flex-col items-center justify-center bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:bg-slate-50 hover:border-slate-200 transition-all">
                     <span className="text-2xl mb-1">⚖️</span>
                     <span className="text-[10px] font-bold text-slate-600">残高調整</span>
