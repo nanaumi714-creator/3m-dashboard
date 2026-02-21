@@ -10,6 +10,7 @@ type Account = {
     asset_type: string;
     account_type: string;
     current_balance_yen: number;
+    is_active: boolean;
 };
 
 export default function BalanceAdjustPage() {
@@ -30,10 +31,9 @@ export default function BalanceAdjustPage() {
     useEffect(() => {
         async function fetchAccounts() {
             try {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const { data, error } = await (supabase as any)
-                    .from("accounts")
-                    .select("*")
+                const { data, error } = await supabase
+                    .from("account_balances")
+                    .select("id,name,asset_type,account_type,current_balance_yen,is_active")
                     .eq("is_active", true)
                     .order("name");
 
@@ -43,13 +43,18 @@ export default function BalanceAdjustPage() {
                 }
 
                 if (data) {
-                    const mapped = data.map((a: any) => ({
-                        id: a.id,
-                        name: a.name,
-                        asset_type: a.asset_type,
-                        account_type: a.account_type || "asset",
-                        current_balance_yen: a.opening_balance_yen || 0,
-                    }));
+                    const mapped = data
+                        .filter((a): a is NonNullable<typeof a> => a !== null)
+                        .map((a) => ({
+                            id: a.id ?? "",
+                            name: a.name ?? "",
+                            asset_type: a.asset_type ?? "",
+                            account_type: a.account_type ?? "asset",
+                            current_balance_yen: a.current_balance_yen ?? 0,
+                            is_active: a.is_active ?? true,
+                        }))
+                        .filter((a) => a.id && a.name);
+
                     setAccounts(mapped);
                 }
             } catch (err) {
@@ -93,7 +98,7 @@ export default function BalanceAdjustPage() {
                 throw insertError;
             }
 
-            router.push("/balance");
+            router.replace("/balance");
         } catch (err) {
             console.error(err);
             setError("調整の保存に失敗しました");
@@ -161,7 +166,7 @@ export default function BalanceAdjustPage() {
                 {/* Actual Balance Input */}
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">
-                        実際の残高
+                        実際の残高（この値に合わせます）
                     </label>
                     <div className="relative">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">¥</span>

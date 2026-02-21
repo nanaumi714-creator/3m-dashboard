@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { fetchVisibleExpenseCategories } from "@/lib/expense-categories";
 import { Database } from "@/lib/database.types";
 
-type PaymentMethod = Database["public"]["Tables"]["payment_methods"]["Row"];
+// type PaymentMethod = Database["public"]["Tables"]["payment_methods"]["Row"];
 type ExpenseCategory = Database["public"]["Tables"]["expense_categories"]["Row"];
 
 export default function CashEntryPage() {
@@ -21,7 +21,7 @@ export default function CashEntryPage() {
         category_id: "",
     });
 
-    const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+    // const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
     const [categories, setCategories] = useState<ExpenseCategory[]>([]);
     const [cashPaymentId, setCashPaymentId] = useState<string>("");
 
@@ -36,7 +36,7 @@ export default function CashEntryPage() {
             .eq("type", "cash")
             .eq("is_active", true);
 
-        setPaymentMethods(pmData || []);
+        // setPaymentMethods(pmData || []);
         if (pmData && pmData.length > 0) {
             setCashPaymentId(pmData[0].id);
         }
@@ -85,7 +85,7 @@ export default function CashEntryPage() {
             }
 
             alert("現金取引を登録しました");
-            router.push("/transactions");
+            router.replace("/transactions");
         } catch (error) {
             console.error(error);
             alert("登録に失敗しました: " + (error instanceof Error ? error.message : ""));

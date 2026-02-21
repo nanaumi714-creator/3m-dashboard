@@ -1,0 +1,15 @@
+---
+description: Global pointer to canonical project agent rules
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+Use `.agent/rules/` as the source of truth for coding policies in this repository.
+
+Load in this order:
+1. `.agent/rules/00-core.md`
+2. Task-relevant rule files in `.agent/rules/`
+3. `.agent/context/AGENTS.md` for phase constraints and DoD
+
+Do not duplicate rule logic in Cursor-specific files.

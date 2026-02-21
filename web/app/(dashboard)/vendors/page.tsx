@@ -21,13 +21,14 @@ export default function VendorsPage() {
     description: "",
     default_category_id: "",
   })
-  const [suggestions, setSuggestions] = useState<string[]>([])
+  // const [suggestions, setSuggestions] = useState<string[]>([])
   const [categories, setCategories] = useState<ExpenseCategory[]>([])
 
   useEffect(() => {
     loadVendors();
   }, [])
 
+  /*
   function getSuggestions(input: string): string[] {
     if (input.length < 2) return [];
 
@@ -49,11 +50,14 @@ export default function VendorsPage() {
 
     return similar.slice(0, 5);
   }
+  */
 
+  /*
   function handleNameChange(value: string) {
     setNewVendor({ ...newVendor, name: value });
     setSuggestions(getSuggestions(value));
   }
+  */
 
   async function loadVendors() { // Renamed from loadData
     try {
@@ -251,10 +255,10 @@ export default function VendorsPage() {
                       {vendor.description}
                     </p>
                   )}
-                  {/* @ts-ignore - Supabase join typing issue */}
+                  {/* Supabase join typing issue */}
                   {vendor.expense_categories && (
                     <div className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-md">
-                      📁 {/* @ts-ignore */}{vendor.expense_categories.name}
+                      📁 {vendor.expense_categories.name}
                     </div>
                   )}
                 </div>

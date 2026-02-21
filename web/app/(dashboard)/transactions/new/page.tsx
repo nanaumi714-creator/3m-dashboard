@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { fetchVisibleExpenseCategories } from "@/lib/expense-categories";
-import { cn } from "@/lib/utils";
+// import { cn } from "@/lib/utils";
 import { normalizeVendor, sha256 } from "@/lib/utils/shared";
 
 const SOURCE_TYPE = "manual";
@@ -21,7 +20,7 @@ export default function TransactionNewPage() {
   const [occurredOn, setOccurredOn] = useState(new Date().toISOString().split('T')[0]);
   const [amountYen, setAmountYen] = useState("");
   const [description, setDescription] = useState("");
-  const [vendorRaw, setVendorRaw] = useState("");
+  const [vendorRaw] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [isBusiness, setIsBusiness] = useState<"business" | "personal" | "pending">("pending");
@@ -82,7 +81,7 @@ export default function TransactionNewPage() {
         });
       }
       setStatusMessage("登録が完了しました。");
-      router.push("/transactions");
+      router.replace("/transactions");
     } catch (err: any) {
       setStatusMessage(err.message || "エラーが発生しました。");
     } finally { setSubmitting(false); }

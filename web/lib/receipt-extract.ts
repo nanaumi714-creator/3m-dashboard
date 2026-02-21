@@ -123,7 +123,7 @@ function extractFallback(ocrText: string): ReceiptExtract {
     .map((value) => Number(value))
     .filter((value) => Number.isFinite(value))
     .sort((a, b) => b - a)[0];
-  const vendorMatch = ocrText.split("\n").find((line) => line.trim().length > 1) || null;
+  // const vendorMatch = ocrText.split("\n").find((line) => line.trim().length > 1) || null;
 
   return {
     occurredOn: normalizeDate(dateMatch?.[1] ?? null),
